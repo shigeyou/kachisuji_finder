@@ -29,17 +29,17 @@ const defaultConstraints = [
   { id: "synergy", label: "3社シナジーを優先", checked: false },
 ];
 const sampleQuestions = [
-  { title: "親会社支援", question: "商船三井マリテックスが商船三井の事業をどう支援できるか？" },
-  { title: "DX全般", question: "商船三井マリテックスのDXを実現するために、どのような新サービスを開発できるか？" },
-  { title: "生成AI", question: "生成AIを活用して、商船三井マリテックスの業務効率化や新サービス開発にどう貢献できるか？" },
-  { title: "脱炭素", question: "海運業界の脱炭素化に向けて、技術支援でどのような貢献ができるか？" },
-  { title: "海技育成", question: "船員の技術力向上のために、どのような研修プログラムを提供できるか？" },
-  { title: "コスト削減", question: "会社の業務コストを削減するために、どのようなソリューションを提案できるか？" },
-  { title: "安全管理", question: "船舶の安全管理を強化するために、どのようなサービスを展開できるか？" },
-  { title: "新規事業", question: "既存の技術・ノウハウを活かして、どのような新規事業に参入できるか？" },
-  { title: "3社統合シナジー", question: "2025年4月のMOLグループ3社(MOLマリン、MOLシップテック、MOLオーシャンエキスパート)の統合によるバリューチェーンの拡大により、どのような相乗効果を生み出せるか？" },
-  { title: "海外展開", question: "アジア市場において、どのようなサービス展開が有望か？" },
-  { title: "データ活用", question: "商船三井マリテックスがこれまで蓄積してきたデータを活用して、どのような付加価値サービスを提供できるか？" },
+  { title: "親会社支援", question: "商船三井グループへの貢献価値を高めるには？" },
+  { title: "DX全般", question: "社内業務や顧客向けサービスのDX化で何ができるか？" },
+  { title: "生成AI", question: "生成AIで業務効率化・新サービス創出するには？" },
+  { title: "脱炭素", question: "脱炭素化支援で新たな収益源を作るには？" },
+  { title: "海技育成", question: "船員育成・技術継承で差別化するには？" },
+  { title: "コスト削減", question: "業務コストを削減しながら価値を高めるには？" },
+  { title: "安全管理", question: "安全管理の高度化で収益に繋げるには？" },
+  { title: "新規事業", question: "既存の強みを活かした新規事業は何か？" },
+  { title: "3社統合", question: "3社統合で生まれるシナジーをどう活かすか？" },
+  { title: "海外展開", question: "アジア市場で勝てるサービスは何か？" },
+  { title: "データ活用", question: "蓄積データを収益化するには？" },
 ];
 
 
@@ -195,7 +195,7 @@ export default function ExplorePage() {
                 <Textarea
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="特に商船三井マリテックスの〇〇事業について、〇年後に儲かる「勝ち筋」を示してほしい。"
+                  placeholder="例：〇〇領域で、3年以内に収益化できる勝ち筋を見つけたい"
                   className="min-h-[120px]"
                 />
               </CardContent>
