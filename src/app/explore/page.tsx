@@ -195,7 +195,7 @@ export default function ExplorePage() {
                 <Textarea
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="特に商船三井マリテックスの〇〇事業について、〇年後に成熟期を迎える「勝ち筋」を示してほしい。"
+                  placeholder="特に商船三井マリテックスの〇〇事業について、〇年後に儲かる「勝ち筋」を示してほしい。"
                   className="min-h-[120px]"
                 />
               </CardContent>
