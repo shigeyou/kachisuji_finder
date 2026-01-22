@@ -77,4 +77,21 @@ jobs:
             --src-path deploy.zip \
             --type zip \
             --clean true \
-            --restart true
+            --restart true \
+            --async true
+
+      - name: Wait for site to be ready
+        run: |
+          echo "Waiting for site to start..."
+          sleep 60
+          for i in {1..10}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://kachisuji-finder.azurewebsites.net/)
+            if [ "$STATUS" = "200" ]; then
+              echo "Site is up! Status: $STATUS"
+              exit 0
+            fi
+            echo "Attempt $i: Status $STATUS, retrying in 30s..."
+            sleep 30
+          done
+          echo "Site did not become healthy in time"
+          exit 1
