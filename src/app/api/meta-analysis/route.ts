@@ -55,6 +55,7 @@ export async function POST() {
 
     for (const exploration of explorations) {
       try {
+        if (!exploration.result) continue;
         const result: ExplorationResult = JSON.parse(exploration.result);
         if (result.strategies) {
           for (const strategy of result.strategies) {

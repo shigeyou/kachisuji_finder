@@ -2,7 +2,7 @@ import { test, expect, Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const BASE_URL = 'http://localhost:3001';
+const BASE_URL = 'http://localhost:3000';
 
 // ===================================
 // 基本的なナビゲーションテスト
@@ -445,5 +445,55 @@ test.describe('データ整合性', () => {
 
     const finalCards = await page.getByTestId('service-card').count();
     expect(finalCards).toBeGreaterThan(initialCards);
+  });
+});
+
+// ===================================
+// テーマ切り替えテスト
+// ===================================
+
+test.describe('テーマ切り替え', () => {
+  test('36. テーマ切り替えボタンが表示される', async ({ page }) => {
+    await page.goto(BASE_URL);
+    // テーマ切り替えボタンを探す（svg内のpath要素を含むボタン）
+    const themeButton = page.locator('button[title*="モード"]').or(page.locator('button').filter({ has: page.locator('svg path') }).first());
+    await expect(themeButton).toBeVisible();
+  });
+
+  test('37. テーマ切り替えボタンをクリックするとdarkクラスが切り替わる', async ({ page }) => {
+    await page.goto(BASE_URL);
+
+    // 初期状態を確認（lightモードのはず）
+    const html = page.locator('html');
+    const initialHasDark = await html.evaluate(el => el.classList.contains('dark'));
+
+    // テーマ切り替えボタンをクリック
+    const themeButton = page.locator('button[title*="モード"]').or(page.locator('button').filter({ has: page.locator('svg path') }).first());
+    await themeButton.click();
+
+    // クラスが切り替わったことを確認
+    await page.waitForTimeout(500);
+    const afterClickHasDark = await html.evaluate(el => el.classList.contains('dark'));
+    expect(afterClickHasDark).not.toBe(initialHasDark);
+  });
+
+  test('38. ダークモードで背景色が変わる', async ({ page }) => {
+    await page.goto(BASE_URL);
+
+    // ダークモードに切り替え
+    const html = page.locator('html');
+    const initialHasDark = await html.evaluate(el => el.classList.contains('dark'));
+
+    if (!initialHasDark) {
+      const themeButton = page.locator('button[title*="モード"]').or(page.locator('button').filter({ has: page.locator('svg path') }).first());
+      await themeButton.click();
+      await page.waitForTimeout(500);
+    }
+
+    // bodyの背景色を確認
+    const bodyBg = await page.locator('body').evaluate(el => window.getComputedStyle(el).backgroundColor);
+    // ダークモードでは暗い背景色になるはず
+    console.log('Body background in dark mode:', bodyBg);
+    expect(bodyBg).not.toBe('rgb(255, 255, 255)');
   });
 });

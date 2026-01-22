@@ -3,18 +3,9 @@ import { prisma } from "@/lib/db";
 import { generateWinningStrategies } from "@/lib/claude";
 import { generateRAGContext } from "@/lib/rag";
 
-export async function POST(request: NextRequest) {
+// Background task runner (using Promise to not block the response)
+async function runExplorationInBackground(explorationId: string, question: string, context: string, constraintIds: string[]) {
   try {
-    const body = await request.json();
-    const { question, context, constraintIds } = body;
-
-    if (!question || question.trim() === "") {
-      return NextResponse.json(
-        { error: "問いを入力してください" },
-        { status: 400 }
-      );
-    }
-
     // Fetch data in parallel
     const [coreServices, coreAssets, defaultConstraints, ragContext] =
       await Promise.all([
@@ -55,12 +46,106 @@ export async function POST(request: NextRequest) {
       ragContext
     );
 
-    // Save to history
+    // Update exploration with result
+    await prisma.exploration.update({
+      where: { id: explorationId },
+      data: {
+        status: "completed",
+        result: JSON.stringify(result),
+      },
+    });
+
+    console.log(`Exploration ${explorationId} completed`);
+  } catch (error) {
+    console.error(`Exploration ${explorationId} failed:`, error);
+
+    // Update exploration with error
+    await prisma.exploration.update({
+      where: { id: explorationId },
+      data: {
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+    });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { question, context, constraintIds, background } = body;
+
+    if (!question || question.trim() === "") {
+      return NextResponse.json(
+        { error: "問いを入力してください" },
+        { status: 400 }
+      );
+    }
+
+    // Background mode: create record and return immediately
+    if (background) {
+      const exploration = await prisma.exploration.create({
+        data: {
+          question,
+          context: context || null,
+          constraints: JSON.stringify(constraintIds || []),
+          status: "processing",
+          result: null,
+        },
+      });
+
+      // Start background processing (don't await)
+      runExplorationInBackground(exploration.id, question, context || "", constraintIds || []);
+
+      return NextResponse.json({
+        id: exploration.id,
+        status: "processing",
+        message: "探索を開始しました。バックグラウンドで処理中です。",
+      });
+    }
+
+    // Synchronous mode (existing behavior)
+    const [coreServices, coreAssets, defaultConstraints, ragContext] =
+      await Promise.all([
+        prisma.coreService.findMany(),
+        prisma.coreAsset.findMany(),
+        prisma.constraint.findMany({ where: { isDefault: true } }),
+        generateRAGContext(),
+      ]);
+
+    const servicesText = coreServices
+      .map(
+        (s) =>
+          `- ${s.name}${s.category ? ` (${s.category})` : ""}${s.description ? `: ${s.description}` : ""}`
+      )
+      .join("\n");
+
+    const assetsText = coreAssets
+      .map(
+        (a) =>
+          `- ${a.name} [${a.type}]${a.description ? `: ${a.description}` : ""}`
+      )
+      .join("\n");
+
+    const constraintsText = defaultConstraints
+      .map((c) => `- ${c.name}${c.description ? `: ${c.description}` : ""}`)
+      .join("\n");
+
+    const result = await generateWinningStrategies(
+      question,
+      context || "",
+      servicesText,
+      assetsText,
+      constraintsText,
+      ragContext
+    );
+
     await prisma.exploration.create({
       data: {
         question,
         context: context || null,
         constraints: JSON.stringify(constraintIds || []),
+        status: "completed",
         result: JSON.stringify(result),
       },
     });
@@ -70,6 +155,47 @@ export async function POST(request: NextRequest) {
     console.error("Exploration error:", error);
     return NextResponse.json(
       { error: "探索中にエラーが発生しました" },
+      { status: 500 }
+    );
+  }
+}
+
+// GET: Check exploration status
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "探索IDが必要です" },
+        { status: 400 }
+      );
+    }
+
+    const exploration = await prisma.exploration.findUnique({
+      where: { id },
+    });
+
+    if (!exploration) {
+      return NextResponse.json(
+        { error: "探索が見つかりません" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      id: exploration.id,
+      status: exploration.status,
+      question: exploration.question,
+      result: exploration.result ? JSON.parse(exploration.result) : null,
+      error: exploration.error,
+      createdAt: exploration.createdAt,
+    });
+  } catch (error) {
+    console.error("Exploration status error:", error);
+    return NextResponse.json(
+      { error: "ステータス取得中にエラーが発生しました" },
       { status: 500 }
     );
   }

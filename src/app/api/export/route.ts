@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
-// CSV形式でエクスポート
+// エクスポート（CSV, JSON, Markdown形式対応）
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -76,6 +76,69 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    if (format === "md") {
+      let mdContent = "";
+
+      switch (type) {
+        case "services":
+          mdContent = "# サービス・機能一覧\n\n";
+          mdContent += "エクスポート日時: " + new Date().toLocaleString("ja-JP") + "\n\n";
+          if (data.length === 0) {
+            mdContent += "登録されているサービスはありません。\n";
+          } else {
+            data.forEach((item, index) => {
+              mdContent += "## " + (index + 1) + ". " + item.name + "\n\n";
+              if (item.category) mdContent += "- **カテゴリ**: " + item.category + "\n";
+              if (item.description) mdContent += "- **説明**: " + item.description + "\n";
+              if (item.url) mdContent += "- **URL**: " + item.url + "\n";
+              mdContent += "- **登録日**: " + new Date(item.createdAt as string).toLocaleString("ja-JP") + "\n";
+              mdContent += "\n---\n\n";
+            });
+          }
+          break;
+
+        case "assets":
+          mdContent = "# アセット一覧\n\n";
+          mdContent += "エクスポート日時: " + new Date().toLocaleString("ja-JP") + "\n\n";
+          if (data.length === 0) {
+            mdContent += "登録されているアセットはありません。\n";
+          } else {
+            data.forEach((item, index) => {
+              mdContent += "## " + (index + 1) + ". " + item.name + "\n\n";
+              if (item.type) mdContent += "- **種別**: " + item.type + "\n";
+              if (item.description) mdContent += "- **説明**: " + item.description + "\n";
+              mdContent += "- **登録日**: " + new Date(item.createdAt as string).toLocaleString("ja-JP") + "\n";
+              mdContent += "\n---\n\n";
+            });
+          }
+          break;
+
+        case "history":
+          mdContent = "# 探索履歴\n\n";
+          mdContent += "エクスポート日時: " + new Date().toLocaleString("ja-JP") + "\n\n";
+          if (data.length === 0) {
+            mdContent += "探索履歴はありません。\n";
+          } else {
+            data.forEach((item, index) => {
+              mdContent += "## " + (index + 1) + ". " + item.question + "\n\n";
+              if (item.context) mdContent += "**コンテキスト**: " + item.context + "\n\n";
+              if (item.constraints) mdContent += "**制約**: " + item.constraints + "\n\n";
+              mdContent += "### 結果\n\n" + item.result + "\n\n";
+              mdContent += "*探索日時: " + new Date(item.createdAt as string).toLocaleString("ja-JP") + "*\n";
+              mdContent += "\n---\n\n";
+            });
+          }
+          break;
+      }
+
+      return new NextResponse(mdContent, {
+        headers: {
+          "Content-Type": "text/markdown; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${filename}.md"`,
+        },
+      });
+    }
+
     // CSV形式
     const csvContent = [
       headers.join(","),
@@ -83,9 +146,8 @@ export async function GET(request: NextRequest) {
         headers
           .map((h) => {
             const value = String(row[h] || "");
-            // CSVエスケープ: ダブルクォートを含む場合やカンマを含む場合
             if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-              return `"${value.replace(/"/g, '""')}"`;
+              return '"' + value.replace(/"/g, '""') + '"';
             }
             return value;
           })
@@ -93,7 +155,6 @@ export async function GET(request: NextRequest) {
       ),
     ].join("\n");
 
-    // BOMを追加してExcelで文字化けしないようにする
     const bom = "\uFEFF";
     return new NextResponse(bom + csvContent, {
       headers: {

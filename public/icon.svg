@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f46e5"/>
+      <stop offset="100%" style="stop-color:#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="pathGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="100%" style="stop-color:#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <!-- 背景 -->
+  <rect width="32" height="32" rx="6" fill="url(#bgGrad)"/>
+  <!-- 勝ち筋パス（右上がりの道） -->
+  <path d="M6 24 Q10 22 12 18 Q14 14 18 12 Q22 10 26 6"
+        stroke="url(#pathGrad)" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <!-- ゴールマーカー（星） -->
+  <circle cx="26" cy="6" r="3" fill="#fbbf24"/>
+  <circle cx="26" cy="6" r="1.5" fill="white"/>
+  <!-- スタートポイント -->
+  <circle cx="6" cy="24" r="2" fill="white" opacity="0.8"/>
+  <!-- 中間ドット（進捗） -->
+  <circle cx="12" cy="18" r="1.5" fill="white" opacity="0.6"/>
+  <circle cx="18" cy="12" r="1.5" fill="white" opacity="0.6"/>
+</svg>
