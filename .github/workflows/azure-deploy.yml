@@ -39,9 +39,14 @@ jobs:
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
 
+      - name: Install production dependencies for deployment
+        run: |
+          rm -rf node_modules
+          npm ci --production
+
       - name: Create deployment package
         run: |
-          zip -r deploy.zip . -x "node_modules/*" -x ".git/*" -x ".github/*"
+          zip -r deploy.zip . -x ".git/*" -x ".github/*" -x "*.md" -x "tests/*" -x "azure-logs*" -x "*.zip"
 
       - name: Login to Azure
         uses: azure/login@v2
