@@ -39,14 +39,21 @@ jobs:
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
 
-      - name: Install production dependencies for deployment
+      - name: Prepare standalone deployment
         run: |
-          rm -rf node_modules
-          npm ci --production
+          # Copy static files and public to standalone
+          cp -r .next/static .next/standalone/.next/
+          cp -r public .next/standalone/
+          # Copy prisma schema for runtime
+          mkdir -p .next/standalone/prisma
+          cp prisma/schema.prisma .next/standalone/prisma/
+          # Copy generated prisma client
+          cp -r src/generated .next/standalone/src/
 
       - name: Create deployment package
         run: |
-          zip -r deploy.zip . -x ".git/*" -x ".github/*" -x "*.md" -x "tests/*" -x "azure-logs*" -x "*.zip"
+          cd .next/standalone
+          zip -r ../../deploy.zip .
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -68,4 +75,4 @@ jobs:
           az webapp config set \
             --resource-group rg-ocreader-japaneast \
             --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --startup-file "npm run start"
+            --startup-file "node server.js"
