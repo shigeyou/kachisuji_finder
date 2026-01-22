@@ -81,7 +81,7 @@ jobs:
           az webapp config appsettings set \
             --resource-group rg-ocreader-japaneast \
             --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --settings DATABASE_URL="file:/home/site/wwwroot/data/dev.db"
+            --settings DATABASE_URL="file:/home/site/wwwroot/data/dev.db" SCM_DO_BUILD_DURING_DEPLOYMENT="false"
 
       - name: Deploy to Azure Web App
         run: |
