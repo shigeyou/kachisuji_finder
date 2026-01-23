@@ -54,6 +54,9 @@ jobs:
           # Copy prisma schema for runtime
           mkdir -p .next/standalone/prisma
           cp prisma/schema.prisma .next/standalone/prisma/
+          # Copy seed data for auto-seeding
+          mkdir -p .next/standalone/prisma/seed-data
+          cp -r prisma/seed-data/* .next/standalone/prisma/seed-data/
           # Copy generated prisma client
           cp -r src/generated .next/standalone/src/
           # Copy database file (prisma creates in prisma/ directory relative to schema)
@@ -100,8 +103,9 @@ jobs:
           sleep 60
           for i in {1..10}; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://kachisuji-finder.azurewebsites.net/)
-            if [ "$STATUS" = "200" ]; then
-              echo "Site is up! Status: $STATUS"
+            # Accept 200 (OK), 401 (Auth required), 302 (Redirect to login) as valid responses
+            if [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ] || [ "$STATUS" = "302" ]; then
+              echo "Site is up! Status: $STATUS (401/302 expected when Azure AD auth is enabled)"
               exit 0
             fi
             echo "Attempt $i: Status $STATUS, retrying in 30s..."
