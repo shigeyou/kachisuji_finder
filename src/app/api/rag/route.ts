@@ -51,6 +51,40 @@ const SUPPORTED_TYPES = ["pdf", "txt", "md", "json", "docx", "csv", "pptx"];
 
 export async function POST(request: NextRequest) {
   try {
+    const contentType = request.headers.get("content-type") || "";
+
+    // JSON形式のバルクインポート
+    if (contentType.includes("application/json")) {
+      const { documents } = await request.json();
+
+      if (!documents || !Array.isArray(documents)) {
+        return NextResponse.json(
+          { error: "documents配列が必要です" },
+          { status: 400 }
+        );
+      }
+
+      const results = [];
+      for (const doc of documents) {
+        const created = await prisma.rAGDocument.create({
+          data: {
+            filename: doc.filename,
+            fileType: doc.fileType,
+            content: doc.content,
+            metadata: doc.metadata,
+          },
+        });
+        results.push({ id: created.id, filename: created.filename });
+      }
+
+      return NextResponse.json({
+        success: true,
+        imported: results.length,
+        documents: results,
+      });
+    }
+
+    // 従来のファイルアップロード
     const formData = await request.formData();
     const file = formData.get("file") as File;
 
