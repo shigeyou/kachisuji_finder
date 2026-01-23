@@ -30,10 +30,25 @@ export default function Dashboard() {
   const [swotLoading, setSwotLoading] = useState(true);
   const [stats, setStats] = useState<ActivityStats | null>(null);
   const [question, setQuestion] = useState("");
+  const [additionalContext, setAdditionalContext] = useState("");
   const [isExploring, setIsExploring] = useState(false);
   const [showSwotDetail, setShowSwotDetail] = useState(false);
 
-  // SWOTベースの問い候補
+  // プリセット問い（バッジ）- ラベルと完全な問いのペア
+  const presetQuestions = [
+    { label: "親会社支援", question: "商船三井グループへの貢献価値を高めるには？" },
+    { label: "生成AI", question: "生成AIで業務効率化・新サービス創出するには？" },
+    { label: "脱炭素", question: "脱炭素化支援で新たな収益源を作るには？" },
+    { label: "船員育成", question: "船員育成・技術継承で差別化するには？" },
+    { label: "コスト削減", question: "業務コストを削減しながら価値を高めるには？" },
+    { label: "安全管理", question: "安全管理の高度化で収益に繋げるには？" },
+    { label: "新規事業", question: "既存の強みを活かした新規事業は何か？" },
+    { label: "統合シナジー", question: "3社統合で生まれるシナジーをどう活かすか？" },
+    { label: "アジア市場", question: "アジア市場で勝てるサービスは何か？" },
+    { label: "データ収益化", question: "蓄積データを収益化するには？" },
+  ];
+
+  // SWOTベースの問い候補（動的）
   const suggestedQuestions = swot ? [
     `${swot.strengths[0]}を活かした新規事業の可能性は？`,
     `${swot.opportunities[0]}に対応する戦略は？`,
@@ -100,12 +115,16 @@ export default function Dashboard() {
     setIsExploring(true);
     try {
       // 探索APIを呼び出し
+      const swotContext = swot ? `SWOT分析に基づく探索。強み: ${swot.strengths.join(", ")}。機会: ${swot.opportunities.join(", ")}。` : "";
+      const fullContext = additionalContext.trim()
+        ? `${swotContext}\n\n追加文脈: ${additionalContext.trim()}`
+        : swotContext;
       const res = await fetch("/api/explore", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question: question.trim(),
-          context: swot ? `SWOT分析に基づく探索。強み: ${swot.strengths.join(", ")}。機会: ${swot.opportunities.join(", ")}。` : "",
+          context: fullContext,
           constraints: [],
         }),
       });
@@ -302,6 +321,39 @@ export default function Dashboard() {
                 className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 resize-none"
                 rows={3}
               />
+
+              {/* 追加文脈（任意） */}
+              <div>
+                <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">
+                  追加文脈（任意）
+                </label>
+                <textarea
+                  value={additionalContext}
+                  onChange={(e) => setAdditionalContext(e.target.value)}
+                  placeholder="例: 今期の重点施策、制約条件、特に深掘りしたい観点など"
+                  className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 resize-none text-sm"
+                  rows={2}
+                />
+              </div>
+
+              {/* プリセット問い（バッジ） */}
+              <div>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                  🏷️ 問いのサンプル:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {presetQuestions.map((preset, i) => (
+                    <button
+                      key={i}
+                      onClick={() => selectSuggestion(preset.question)}
+                      className="px-3 py-1.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                      title={preset.question}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* SWOT からの問い候補 */}
               {swot && suggestedQuestions.length > 0 && (

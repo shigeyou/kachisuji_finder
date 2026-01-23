@@ -83,6 +83,9 @@ export default function StrategiesPage() {
   const [autoExploreResult, setAutoExploreResult] = useState<AutoExploreResult | null>(null);
   const [autoExploreHistory, setAutoExploreHistory] = useState<AutoExploreHistory[]>([]);
 
+  // 全決定データ（ランキングタブで使用）
+  const [allDecisions, setAllDecisions] = useState<Record<string, Decision>>({});
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -95,6 +98,13 @@ export default function StrategiesPage() {
       const decisionsData = await decisionsRes.json();
       const decisions: Decision[] = decisionsData.decisions || [];
       const adoptedDecisions = decisions.filter(d => d.decision === "adopt");
+
+      // 戦略名でインデックス化（ランキングで使用）
+      const decisionsByName: Record<string, Decision> = {};
+      for (const d of decisions) {
+        decisionsByName[d.strategyName] = d;
+      }
+      setAllDecisions(decisionsByName);
 
       // ランキングデータを取得
       const rankingRes = await fetch("/api/ranking");
@@ -197,6 +207,59 @@ export default function StrategiesPage() {
       alert("自動探索に失敗しました");
     } finally {
       setIsAutoExploring(false);
+    }
+  };
+
+  // 採否決定を記録（ランキングタブ用）
+  const handleDecision = async (
+    strategy: Strategy,
+    decision: "adopt" | "reject" | "pending"
+  ) => {
+    // explorationIdがある場合はそれを使う。ない場合は戦略名から推定（仮のID）
+    const explorationId = (strategy as Strategy & { explorationId?: string }).explorationId || "ranking-" + strategy.name;
+
+    try {
+      const res = await fetch("/api/decisions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          explorationId,
+          strategyName: strategy.name,
+          decision,
+        }),
+      });
+
+      if (res.ok) {
+        // ローカル状態を更新
+        setAllDecisions((prev) => ({
+          ...prev,
+          [strategy.name]: { strategyName: strategy.name, decision, explorationId },
+        }));
+        // 採用タブも更新
+        if (decision === "adopt") {
+          setAdoptedStrategies((prev) => {
+            const exists = prev.find((s) => s.name === strategy.name);
+            if (!exists) {
+              return [
+                ...prev,
+                {
+                  ...strategy,
+                  decision: { strategyName: strategy.name, decision, explorationId },
+                },
+              ];
+            }
+            return prev;
+          });
+        } else {
+          // 採用から外す
+          setAdoptedStrategies((prev) => prev.filter((s) => s.name !== strategy.name));
+        }
+      } else {
+        alert("決定の保存に失敗しました");
+      }
+    } catch (error) {
+      console.error("Failed to save decision:", error);
+      alert("決定の保存に失敗しました");
     }
   };
 
@@ -377,6 +440,7 @@ export default function StrategiesPage() {
                           <th className="text-left py-3 px-2 text-xs font-medium text-slate-500 dark:text-slate-400">戦略名</th>
                           <th className="text-center py-3 px-2 text-xs font-medium text-slate-500 dark:text-slate-400">スコア</th>
                           <th className="text-center py-3 px-2 text-xs font-medium text-slate-500 dark:text-slate-400">判定</th>
+                          <th className="text-center py-3 px-2 text-xs font-medium text-slate-500 dark:text-slate-400">採否</th>
                           <th className="text-center py-3 px-2 text-xs font-medium text-slate-500 dark:text-slate-400">日付</th>
                         </tr>
                       </thead>
@@ -410,6 +474,32 @@ export default function StrategiesPage() {
                             </td>
                             <td className="py-3 px-2 text-center">
                               {judgmentBadge(strategy.judgment)}
+                            </td>
+                            <td className="py-3 px-2 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => handleDecision(strategy, "adopt")}
+                                  className={`px-2 py-0.5 text-xs rounded transition-colors ${
+                                    allDecisions[strategy.name]?.decision === "adopt"
+                                      ? "bg-green-600 text-white"
+                                      : "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400"
+                                  }`}
+                                  title="採用"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => handleDecision(strategy, "reject")}
+                                  className={`px-2 py-0.5 text-xs rounded transition-colors ${
+                                    allDecisions[strategy.name]?.decision === "reject"
+                                      ? "bg-red-600 text-white"
+                                      : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
+                                  }`}
+                                  title="却下"
+                                >
+                                  ✕
+                                </button>
+                              </div>
                             </td>
                             <td className="py-3 px-2 text-center text-xs text-slate-500 dark:text-slate-400">
                               {formatDate(strategy.createdAt)}

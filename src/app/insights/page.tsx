@@ -191,6 +191,41 @@ function InsightsPageContent() {
     }
   };
 
+  // 採否決定を記録
+  const handleDecision = async (
+    explorationId: string,
+    strategyName: string,
+    decision: "adopt" | "reject" | "pending"
+  ) => {
+    try {
+      const res = await fetch("/api/decisions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          explorationId,
+          strategyName,
+          decision,
+        }),
+      });
+
+      if (res.ok) {
+        // ローカル状態を更新
+        setDecisions((prev) => ({
+          ...prev,
+          [explorationId]: {
+            ...prev[explorationId],
+            [strategyName]: { strategyName, decision },
+          },
+        }));
+      } else {
+        alert("決定の保存に失敗しました");
+      }
+    } catch (error) {
+      console.error("Failed to save decision:", error);
+      alert("決定の保存に失敗しました");
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("ja-JP", {
@@ -384,24 +419,50 @@ function InsightsPageContent() {
                                             {totalScore.toFixed(1)}
                                           </span>
                                         )}
-                                        {decision && (
-                                          <span
-                                            className={`px-2 py-0.5 text-xs rounded ${
-                                              decision.decision === "adopt"
-                                                ? "bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200"
-                                                : decision.decision === "reject"
-                                                ? "bg-red-200 text-red-800 dark:bg-red-800 dark:text-red-200"
-                                                : "bg-yellow-200 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-200"
-                                            }`}
-                                          >
-                                            {decision.decision === "adopt" ? "採用" : decision.decision === "reject" ? "却下" : "保留"}
-                                          </span>
-                                        )}
                                       </div>
                                     </div>
                                     <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                                       {strategy.reason}
                                     </p>
+                                    {/* 採否決定ボタン */}
+                                    <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-200 dark:border-slate-600">
+                                      <span className="text-xs text-slate-500 dark:text-slate-400 mr-2">判定:</span>
+                                      <button
+                                        onClick={() => handleDecision(exploration.id, strategy.name, "adopt")}
+                                        className={`px-3 py-1 text-xs rounded transition-colors ${
+                                          decision?.decision === "adopt"
+                                            ? "bg-green-600 text-white"
+                                            : "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
+                                        }`}
+                                      >
+                                        採用
+                                      </button>
+                                      <button
+                                        onClick={() => handleDecision(exploration.id, strategy.name, "reject")}
+                                        className={`px-3 py-1 text-xs rounded transition-colors ${
+                                          decision?.decision === "reject"
+                                            ? "bg-red-600 text-white"
+                                            : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
+                                        }`}
+                                      >
+                                        却下
+                                      </button>
+                                      <button
+                                        onClick={() => handleDecision(exploration.id, strategy.name, "pending")}
+                                        className={`px-3 py-1 text-xs rounded transition-colors ${
+                                          decision?.decision === "pending"
+                                            ? "bg-yellow-600 text-white"
+                                            : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50"
+                                        }`}
+                                      >
+                                        保留
+                                      </button>
+                                      {decision && (
+                                        <span className="ml-auto text-xs text-slate-500 dark:text-slate-400">
+                                          現在: {decision.decision === "adopt" ? "採用済" : decision.decision === "reject" ? "却下済" : "保留中"}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 );
                               })}

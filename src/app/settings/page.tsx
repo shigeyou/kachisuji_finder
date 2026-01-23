@@ -26,12 +26,12 @@ interface ScoreWeights {
 }
 
 const defaultWeights: ScoreWeights = {
-  revenuePotential: 1.0,
-  timeToRevenue: 1.0,
-  competitiveAdvantage: 1.0,
-  executionFeasibility: 1.0,
-  hqContribution: 1.0,
-  mergerSynergy: 1.0,
+  revenuePotential: 30,
+  timeToRevenue: 20,
+  competitiveAdvantage: 20,
+  executionFeasibility: 15,
+  hqContribution: 10,
+  mergerSynergy: 5,
 };
 
 const scoreLabels: Record<keyof ScoreWeights, string> = {
@@ -82,7 +82,8 @@ export default function SettingsPage() {
     try {
       const res = await fetch("/api/core/services");
       const data = await res.json();
-      setServices(data.services || []);
+      // APIは配列を直接返すか、{services: [...]}形式で返す
+      setServices(Array.isArray(data) ? data : data.services || []);
     } catch (error) {
       console.error("Failed to fetch services:", error);
     } finally {
@@ -142,15 +143,13 @@ export default function SettingsPage() {
     }
 
     try {
-      const url = editingId
-        ? `/api/core/services/${editingId}`
-        : "/api/core/services";
+      const url = "/api/core/services";
       const method = editingId ? "PUT" : "POST";
 
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(editingId ? { ...formData, id: editingId } : formData),
       });
 
       if (res.ok) {
@@ -169,7 +168,7 @@ export default function SettingsPage() {
     if (!confirm("このサービスを削除しますか？")) return;
 
     try {
-      const res = await fetch(`/api/core/services/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/core/services?id=${id}`, { method: "DELETE" });
       if (res.ok) {
         fetchServices();
       }
