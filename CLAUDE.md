@@ -62,15 +62,22 @@ npm run dev
 
 ## デプロイ（Azure）
 
-### デプロイ後の必須作業：RAGドキュメント同期
+### RAGドキュメント自動シード機能
 
-**重要**: Azure版はSQLiteデータベースが永続化されないため、デプロイ後はRAGドキュメントが0件になる。
-デプロイ後は必ずローカルのRAGドキュメントをAzure版に同期すること。
+**アプリ起動時に自動でRAGドキュメントをシードする機能が実装済み。**
+
+- シードファイル: `prisma/seed-data/rag-documents.json`
+- 起動時にRAGドキュメントが0件の場合、自動的にシードデータを読み込む
+- `src/instrumentation.ts` で実装
+
+### シードデータの更新方法
+
+ローカルのRAGドキュメントをシードファイルに反映する場合：
 
 ```bash
-# 1. ローカルからRAGドキュメントをエクスポート（コンテンツ含む）
+# 1. ローカルからRAGドキュメントをエクスポート
 node -e "
-const ids = [/* ローカルのドキュメントIDリスト */];
+const ids = [/* ローカルのドキュメントIDリスト - api/ragで取得 */];
 async function main() {
   const docs = [];
   for (const id of ids) {
@@ -88,25 +95,30 @@ async function main() {
   console.log(JSON.stringify({ documents: docs }));
 }
 main();
-" 2>/dev/null > /tmp/rag-export.json
+" 2>/dev/null > prisma/seed-data/rag-documents.json
 
-# 2. Azure版にインポート（文字化け対策: charset=utf-8を明示）
-curl -X POST "https://kachisuji-finder.azurewebsites.net/api/rag" \
-  -H "Content-Type: application/json; charset=utf-8" \
-  --data-binary @/tmp/rag-export.json
+# 2. コミット・プッシュ
+git add prisma/seed-data/rag-documents.json
+git commit -m "chore: Update RAG seed data"
+git push origin master
 ```
 
-### 文字化け対策
-- インポート時は必ず `charset=utf-8` を指定する
-- `--data-binary` を使用してバイナリデータとして送信する
-- ファイル名に日本語が含まれる場合は特に注意
+### 手動シードAPI
+
+自動シードが動作しない場合の手動実行：
+- `GET /api/seed` - シード状態確認
+- `POST /api/seed` - 手動シード実行
 
 ### デプロイ手順チェックリスト
-1. [ ] `git push origin master` でコードをプッシュ
-2. [ ] GitHub Actionsのデプロイ完了を確認
-3. [ ] **RAGドキュメントをAzure版に同期**（上記手順）
-4. [ ] Azure版でRAGドキュメント件数を確認
+1. [ ] シードデータが最新か確認（`prisma/seed-data/rag-documents.json`）
+2. [ ] `git push origin master` でコードをプッシュ
+3. [ ] GitHub Actionsのデプロイ完了を確認
+4. [ ] Azure版でRAGドキュメント件数を確認（自動シード済みのはず）
 5. [ ] 動作確認（SWOT、勝ち筋探索など）
+
+### 文字化け対策（手動インポート時）
+- インポート時は必ず `charset=utf-8` を指定する
+- `--data-binary` を使用してバイナリデータとして送信する
 
 ## 技術スタック
 - Next.js 16 (Turbopack)
