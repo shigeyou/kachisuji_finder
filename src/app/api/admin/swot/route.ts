@@ -45,6 +45,11 @@ export async function POST(request: NextRequest) {
 
     // AI生成モード
     if (regenerate) {
+      // 対象企業プロファイルを取得
+      const companyProfile = await prisma.companyProfile.findUnique({
+        where: { id: "default" },
+      });
+
       // RAGドキュメントを参照
       const ragDocuments = await prisma.rAGDocument.findMany({
         select: { filename: true, content: true },
@@ -54,13 +59,30 @@ export async function POST(request: NextRequest) {
         ? ragDocuments.map(d => `### ${d.filename}\n${d.content.substring(0, 3000)}`).join("\n\n")
         : "";
 
-      const prompt = `あなたは企業戦略コンサルタントです。以下の情報を基にSWOT分析を行ってください。
+      // 対象企業情報を整形
+      let companyContext = "";
+      if (companyProfile) {
+        companyContext = `## 対象企業情報 ※分析対象の企業
+- 企業名: ${companyProfile.name}${companyProfile.shortName ? ` (${companyProfile.shortName})` : ""}
+${companyProfile.description ? `- 会社概要: ${companyProfile.description}` : ""}
+${companyProfile.industry ? `- 業界: ${companyProfile.industry}` : ""}
+${companyProfile.background ? `- 背景・経緯: ${companyProfile.background}` : ""}
+${companyProfile.techStack ? `- 技術基盤: ${companyProfile.techStack}` : ""}
+${companyProfile.parentCompany ? `- 親会社: ${companyProfile.parentCompany}` : ""}
+${companyProfile.parentRelation ? `- 親会社との関係: ${companyProfile.parentRelation}` : ""}
+${companyProfile.additionalContext ? `- 補足情報: ${companyProfile.additionalContext}` : ""}
+
+`;
+      }
+
+      const prompt = `あなたは企業戦略コンサルタントです。以下の情報を基に「${companyProfile?.name || "対象企業"}」のSWOT分析を行ってください。
 
 ## 最重要ルール（必ず遵守）
-1. RAGドキュメント（会社資料）に記載されている事業・サービス・実績こそが正式な情報源です。
-2. 提供された資料に基づいて具体的かつ実用的な分析を行ってください。
+1. 対象企業情報に記載されている企業に対するSWOT分析を行ってください。
+2. RAGドキュメント（会社資料）に記載されている事業・サービス・実績こそが正式な情報源です。
+3. 提供された資料に基づいて具体的かつ実用的な分析を行ってください。
 
-${ragContext ? `## 会社資料（RAGドキュメント）※最も重要な情報源
+${companyContext}${ragContext ? `## 会社資料（RAGドキュメント）※最も重要な情報源
 ${ragContext}
 
 ` : ""}${additionalInfo ? `## 補足情報・追加資料
@@ -78,8 +100,8 @@ ${additionalInfo}
 
 ## 分析ガイドライン
 - 各項目は5〜8個程度、具体的かつ実用的な内容にしてください。
-- RAGドキュメントに記載されている会社情報・事業内容・強みを最大限活用してください。
-- 海運グループ企業の視点で、市場環境や競合状況も考慮してください。
+- 対象企業情報とRAGドキュメントに記載されている会社情報・事業内容・強みを最大限活用してください。
+- 対象企業の業界・市場環境や競合状況も考慮してください。
 - サマリーには「登録」「未登録」「システム」等のメタ情報を含めず、純粋に事業戦略の観点で記述してください。`;
 
       console.log("Generating SWOT analysis with AI...");
