@@ -54,7 +54,7 @@ export interface ExplorationResult {
   thinking?: string;
 }
 
-export type TabType = "swot" | "rag" | "score" | "explore" | "history" | "ranking" | "strategies";
+export type TabType = "intro" | "swot" | "rag" | "score" | "explore" | "history" | "ranking" | "strategies" | "insights";
 
 export type ExplorationStatus = "idle" | "running" | "completed" | "failed";
 
@@ -68,12 +68,14 @@ export interface EvolvedStrategy {
   sourceStrategies: string[];
   evolveType: "mutation" | "crossover" | "refutation";
   improvement: string;
+  totalScore?: number;
 }
 
 export interface EvolveResult {
   strategies: EvolvedStrategy[];
   thinkingProcess: string;
   sourceCount: number;
+  archivedCount?: number;
 }
 
 export interface AutoExploreResult {
@@ -217,6 +219,12 @@ interface AppContextType {
   startMetaAnalysis: () => Promise<void>;
   clearMetaAnalysisResult: () => void;
 
+  // プリセット質問生成
+  presetQuestions: { label: string; question: string }[];
+  presetQuestionsStatus: ExplorationStatus;
+  presetQuestionsProgress: number;
+  generatePresetQuestions: () => Promise<void>;
+
   // ユーティリティ
   calculateWeightedScore: (scores: Record<string, number>) => number;
 }
@@ -279,6 +287,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const metaAnalysisProgressRef = useRef<NodeJS.Timeout | null>(null);
   const metaAnalysisStartTimeRef = useRef<number>(0);
   const metaAnalysisMaxProgressRef = useRef<number>(0);
+
+  // プリセット質問
+  const [presetQuestionsState, setPresetQuestionsState] = useState<{ label: string; question: string }[]>(presetQuestions);
+  const [presetQuestionsStatus, setPresetQuestionsStatus] = useState<ExplorationStatus>("idle");
+  const [presetQuestionsProgress, setPresetQuestionsProgress] = useState(0);
+  const presetQuestionsProgressRef = useRef<NodeJS.Timeout | null>(null);
+  const presetQuestionsStartTimeRef = useRef<number>(0);
 
   // イージング関数: 前半ゆっくり→後半加速（尻上がり）
   // ユーザー要望: 前半を現在の50%の速度に抑え、93%付近での停滞感を解消
@@ -802,6 +817,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setMetaAnalysisError(null);
   };
 
+  // ===== プリセット質問生成 =====
+  const generatePresetQuestions = async () => {
+    if (presetQuestionsProgressRef.current) {
+      clearInterval(presetQuestionsProgressRef.current);
+      presetQuestionsProgressRef.current = null;
+    }
+
+    presetQuestionsStartTimeRef.current = Date.now();
+    setPresetQuestionsStatus("running");
+    setPresetQuestionsProgress(0);
+
+    // プログレスバーアニメーション（30秒想定）
+    presetQuestionsProgressRef.current = setInterval(() => {
+      const newProgress = calculateEasedProgress(presetQuestionsStartTimeRef.current, 30000);
+      setPresetQuestionsProgress(newProgress);
+    }, 500);
+
+    try {
+      const res = await fetch("/api/preset-questions");
+
+      if (presetQuestionsProgressRef.current) {
+        clearInterval(presetQuestionsProgressRef.current);
+        presetQuestionsProgressRef.current = null;
+      }
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setPresetQuestionsStatus("failed");
+        setPresetQuestionsProgress(0);
+      } else {
+        setPresetQuestionsState(data.questions || presetQuestions);
+        setPresetQuestionsStatus("completed");
+        setPresetQuestionsProgress(100);
+      }
+    } catch (error) {
+      console.error("Preset questions generation failed:", error);
+      if (presetQuestionsProgressRef.current) {
+        clearInterval(presetQuestionsProgressRef.current);
+        presetQuestionsProgressRef.current = null;
+      }
+      setPresetQuestionsStatus("failed");
+      setPresetQuestionsProgress(0);
+    }
+  };
+
   // クリーンアップ
   useEffect(() => {
     return () => {
@@ -819,6 +880,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       if (metaAnalysisProgressRef.current) {
         clearInterval(metaAnalysisProgressRef.current);
+      }
+      if (presetQuestionsProgressRef.current) {
+        clearInterval(presetQuestionsProgressRef.current);
       }
     };
   }, []);
@@ -865,6 +929,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     metaAnalysisError,
     startMetaAnalysis,
     clearMetaAnalysisResult,
+    presetQuestions: presetQuestionsState,
+    presetQuestionsStatus,
+    presetQuestionsProgress,
+    generatePresetQuestions,
     calculateWeightedScore,
   };
 

@@ -2,6 +2,7 @@
 
 import { AppProvider, useApp, TabType } from "@/contexts/AppContext";
 import { Navigation } from "@/components/navigation";
+import { IntroTab } from "@/components/tabs/IntroTab";
 import { SwotTab } from "@/components/tabs/SwotTab";
 import { RagTab } from "@/components/tabs/RagTab";
 import { ScoreSettingsTab } from "@/components/tabs/ScoreSettingsTab";
@@ -9,8 +10,10 @@ import { ExploreTab } from "@/components/tabs/ExploreTab";
 import { HistoryTab } from "@/components/tabs/HistoryTab";
 import { RankingTab } from "@/components/tabs/RankingTab";
 import { StrategiesTab } from "@/components/tabs/StrategiesTab";
+import { InsightsTab } from "@/components/tabs/InsightsTab";
 
 const tabComponents: Record<TabType, React.FC> = {
+  intro: IntroTab,
   swot: SwotTab,
   rag: RagTab,
   score: ScoreSettingsTab,
@@ -18,6 +21,7 @@ const tabComponents: Record<TabType, React.FC> = {
   history: HistoryTab,
   ranking: RankingTab,
   strategies: StrategiesTab,
+  insights: InsightsTab,
 };
 
 function MainContent() {

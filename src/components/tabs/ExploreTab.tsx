@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useApp, presetQuestions } from "@/contexts/AppContext";
+import { useState, useEffect } from "react";
+import { useApp, presetQuestions as defaultPresetQuestions } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
+
+interface PresetQuestion {
+  label: string;
+  question: string;
+}
 
 export function ExploreTab() {
   const {
@@ -19,6 +24,57 @@ export function ExploreTab() {
   const [additionalContext, setAdditionalContext] = useState("");
   const [selectedPresets, setSelectedPresets] = useState<Set<number>>(new Set());
   const [expandedStrategy, setExpandedStrategy] = useState<number | null>(null);
+
+  // 動的プリセット質問
+  const [presetQuestions, setPresetQuestions] = useState<PresetQuestion[]>(defaultPresetQuestions);
+  const [presetsLoading, setPresetsLoading] = useState(false);
+  const [presetsSource, setPresetsSource] = useState<"default" | "cached" | "rag">("default");
+
+  // localStorageのキー
+  const PRESETS_CACHE_KEY = "kachisuji_preset_questions";
+
+  // RAG情報からプリセット質問を生成（手動再生成用）
+  const generatePresets = async () => {
+    setPresetsLoading(true);
+    try {
+      const res = await fetch("/api/preset-questions");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.questions && data.questions.length > 0) {
+          setPresetQuestions(data.questions);
+          setPresetsSource("rag");
+          // localStorageにキャッシュ
+          localStorage.setItem(PRESETS_CACHE_KEY, JSON.stringify({
+            questions: data.questions,
+            timestamp: Date.now(),
+          }));
+        }
+      }
+    } catch (error) {
+      console.error("Failed to generate preset questions:", error);
+    } finally {
+      setPresetsLoading(false);
+    }
+  };
+
+  // 初回ロード時：キャッシュがあれば使用、なければ自動生成
+  useEffect(() => {
+    const cached = localStorage.getItem(PRESETS_CACHE_KEY);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed.questions && parsed.questions.length > 0) {
+          setPresetQuestions(parsed.questions);
+          setPresetsSource("cached");
+          return; // キャッシュがあれば自動生成しない
+        }
+      } catch {
+        // パースエラーの場合は無視
+      }
+    }
+    // キャッシュがない場合のみ初回自動生成
+    generatePresets();
+  }, []);
 
   // スコアラベルの日本語マッピング
   const scoreLabels: Record<string, string> = {
@@ -94,26 +150,45 @@ export function ExploreTab() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                プリセット質問（複数選択可）
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {presetQuestions.map((preset, i) => (
-                  <button
-                    key={i}
-                    onClick={() => togglePreset(i)}
-                    disabled={explorationStatus === "running"}
-                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
-                      selectedPresets.has(i)
-                        ? "bg-blue-600 text-white"
-                        : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50"
-                    }`}
-                    title={preset.question}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  プリセット質問（複数選択可）
+                  <span className="ml-2 text-xs text-slate-400">
+                    {presetQuestions.length}個
+                  </span>
+                </label>
+                <button
+                  onClick={generatePresets}
+                  disabled={presetsLoading || explorationStatus === "running"}
+                  className="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                >
+                  {presetsLoading ? "生成中..." : "RAGから再生成"}
+                </button>
               </div>
+              {presetsLoading ? (
+                <div className="flex items-center justify-center py-4 text-sm text-slate-500">
+                  <span className="animate-spin mr-2">⏳</span>
+                  RAG情報から質問を生成中...
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-1">
+                  {presetQuestions.map((preset, i) => (
+                    <button
+                      key={i}
+                      onClick={() => togglePreset(i)}
+                      disabled={explorationStatus === "running"}
+                      className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                        selectedPresets.has(i)
+                          ? "bg-blue-600 text-white"
+                          : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                      }`}
+                      title={preset.question}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>

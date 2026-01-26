@@ -82,9 +82,9 @@ export function SwotTab() {
   };
 
   return (
-    <div className="h-full flex flex-col px-4 py-3" style={{ height: 'calc(100vh - 120px)' }}>
+    <div className="flex flex-col px-4 py-3 overflow-hidden" style={{ height: 'calc(100vh - 130px)' }}>
       {/* ヘッダー */}
-      <div className="flex items-center justify-between mb-3 flex-shrink-0">
+      <div className="flex items-center justify-between mb-1 flex-shrink-0">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">SWOT分析</h1>
           {swot && (
@@ -110,6 +110,14 @@ export function SwotTab() {
           </Button>
         </div>
       </div>
+      <p className="text-sm text-slate-600 dark:text-slate-400 mb-2 flex-shrink-0">
+        外部データを検索・参照するRAGの仕組みと、大規模言語モデルが保持する知識を組み合わせて、SWOT分析を行います。
+      </p>
+
+      {/* 案内メッセージ */}
+      <p className="text-sm text-slate-600 dark:text-slate-400 mb-3 flex-shrink-0">
+        このままでよければ次に進んで問題ありません。内容を変更したい場合は「再分析」を実行してください。
+      </p>
 
       {/* 補足情報入力欄（折りたたみ式） */}
       {showAdditionalInput && (
@@ -148,15 +156,15 @@ export function SwotTab() {
           読み込み中...
         </div>
       ) : swot ? (
-        <div className="flex-1 flex flex-col min-h-0 gap-3">
+        <div className="flex-1 flex flex-col min-h-0 gap-2 overflow-hidden">
           {/* 4象限グリッド */}
-          <div className="flex-1 grid grid-cols-2 gap-3 min-h-0">
+          <div className="flex-1 grid grid-cols-2 gap-2 min-h-0 overflow-hidden">
             {/* 強み */}
-            <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 overflow-auto">
-              <h3 className="font-semibold text-green-800 dark:text-green-300 mb-2 text-base sticky top-0 bg-green-50 dark:bg-green-900/20">
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 overflow-auto">
+              <h3 className="font-semibold text-green-800 dark:text-green-300 mb-1.5 text-sm sticky top-0 bg-green-50 dark:bg-green-900/20">
                 強み (Strengths)
               </h3>
-              <ul className="space-y-1.5 text-sm text-green-700 dark:text-green-400">
+              <ul className="space-y-1 text-xs text-green-700 dark:text-green-400">
                 {swot.strengths.map((s, i) => (
                   <li key={i} className="flex items-start gap-1.5">
                     <span className="text-green-500 mt-0.5 flex-shrink-0">•</span>
@@ -167,11 +175,11 @@ export function SwotTab() {
             </div>
 
             {/* 弱み */}
-            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 overflow-auto">
-              <h3 className="font-semibold text-red-800 dark:text-red-300 mb-2 text-base sticky top-0 bg-red-50 dark:bg-red-900/20">
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 overflow-auto">
+              <h3 className="font-semibold text-red-800 dark:text-red-300 mb-1.5 text-sm sticky top-0 bg-red-50 dark:bg-red-900/20">
                 弱み (Weaknesses)
               </h3>
-              <ul className="space-y-1.5 text-sm text-red-700 dark:text-red-400">
+              <ul className="space-y-1 text-xs text-red-700 dark:text-red-400">
                 {swot.weaknesses.map((w, i) => (
                   <li key={i} className="flex items-start gap-1.5">
                     <span className="text-red-500 mt-0.5 flex-shrink-0">•</span>
@@ -182,11 +190,11 @@ export function SwotTab() {
             </div>
 
             {/* 機会 */}
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 overflow-auto">
-              <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2 text-base sticky top-0 bg-blue-50 dark:bg-blue-900/20">
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 overflow-auto">
+              <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-1.5 text-sm sticky top-0 bg-blue-50 dark:bg-blue-900/20">
                 機会 (Opportunities)
               </h3>
-              <ul className="space-y-1.5 text-sm text-blue-700 dark:text-blue-400">
+              <ul className="space-y-1 text-xs text-blue-700 dark:text-blue-400">
                 {swot.opportunities.map((o, i) => (
                   <li key={i} className="flex items-start gap-1.5">
                     <span className="text-blue-500 mt-0.5 flex-shrink-0">•</span>
@@ -197,11 +205,11 @@ export function SwotTab() {
             </div>
 
             {/* 脅威 */}
-            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800 overflow-auto">
-              <h3 className="font-semibold text-yellow-800 dark:text-yellow-300 mb-2 text-base sticky top-0 bg-yellow-50 dark:bg-yellow-900/20">
+            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800 overflow-auto">
+              <h3 className="font-semibold text-yellow-800 dark:text-yellow-300 mb-1.5 text-sm sticky top-0 bg-yellow-50 dark:bg-yellow-900/20">
                 脅威 (Threats)
               </h3>
-              <ul className="space-y-1.5 text-sm text-yellow-700 dark:text-yellow-400">
+              <ul className="space-y-1 text-xs text-yellow-700 dark:text-yellow-400">
                 {swot.threats.map((t, i) => (
                   <li key={i} className="flex items-start gap-1.5">
                     <span className="text-yellow-500 mt-0.5 flex-shrink-0">•</span>
@@ -214,11 +222,11 @@ export function SwotTab() {
 
           {/* サマリー */}
           {swot.summary && (
-            <div className="p-3 bg-slate-100 dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 flex-shrink-0 max-h-32 overflow-auto">
-              <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-1 text-sm">
+            <div className="p-3 bg-slate-100 dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 flex-shrink-0">
+              <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-1" style={{ fontSize: '110%' }}>
                 サマリー
               </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed">
+              <p className="text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed" style={{ fontSize: '110%' }}>
                 {swot.summary}
               </p>
             </div>

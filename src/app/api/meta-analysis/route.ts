@@ -138,7 +138,7 @@ export async function POST() {
       )
       .join("\n\n");
 
-    const systemPrompt = `あなたは「勝ち筋ファインダーVer.0.5」のメタ分析AIです。
+    const systemPrompt = `あなたは「勝ち筋ファインダーVer.0.6」のメタ分析AIです。
 複数の経営者が探索した勝ち筋を横断分析し、より高次の戦略的洞察を抽出します。
 
 ## あなたの役割

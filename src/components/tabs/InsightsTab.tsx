@@ -41,8 +41,10 @@ export function InsightsTab() {
     startMetaAnalysis,
     clearMetaAnalysisResult,
   } = useApp();
-
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>("patterns");
+  const [loading, setLoading] = useState(true);
+
+  // 学習パターン
   const [patterns, setPatterns] = useState<LearningPattern[]>([]);
   const [patternStats, setPatternStats] = useState<{
     successPatterns: number;
@@ -50,9 +52,6 @@ export function InsightsTab() {
     total: number;
   } | null>(null);
   const [filterType, setFilterType] = useState<"all" | "success_pattern" | "failure_pattern">("all");
-  const [loading, setLoading] = useState(true);
-
-  // パターン抽出
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractResult, setExtractResult] = useState<string | null>(null);
 
@@ -90,6 +89,7 @@ export function InsightsTab() {
         fetch("/api/learning"),
         fetch("/api/meta-analysis?limit=10"),
       ]);
+
       const patternsData = await patternsRes.json();
       setPatterns(patternsData.patterns || []);
       setPatternStats(patternsData.stats || null);
@@ -170,29 +170,48 @@ export function InsightsTab() {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">インサイト</h1>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">インサイト</h1>
+      <p className="text-slate-600 dark:text-slate-400 mb-6">
+        過去の探索結果を俯瞰し、繰り返し現れる本質的な勝ちパターンを発見します。
+      </p>
 
       {/* サブタブ */}
-      <div className="flex gap-1 mb-6 border-b border-slate-200 dark:border-slate-700">
+      <div className="flex gap-2 mb-6 border-b border-slate-200 dark:border-slate-700">
         <button
           onClick={() => setActiveSubTab("patterns")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
             activeSubTab === "patterns"
-              ? "border-blue-600 text-blue-600 dark:text-blue-400"
-              : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+              ? "border-amber-500 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20"
+              : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800"
           }`}
         >
-          学習パターン ({patterns.length})
+          <div className="flex items-center gap-2">
+            <span className="text-lg">📝</span>
+            <div className="text-left">
+              <div>学習パターン ({patterns.length})</div>
+              <div className={`text-xs ${activeSubTab === "patterns" ? "text-amber-600 dark:text-amber-500" : "text-slate-500"}`}>
+                あなたの採否判断から学ぶ
+              </div>
+            </div>
+          </div>
         </button>
         <button
           onClick={() => setActiveSubTab("meta")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
             activeSubTab === "meta"
-              ? "border-blue-600 text-blue-600 dark:text-blue-400"
-              : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+              ? "border-purple-500 text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
+              : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800"
           }`}
         >
-          メタ分析
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🔭</span>
+            <div className="text-left">
+              <div>メタ分析</div>
+              <div className={`text-xs ${activeSubTab === "meta" ? "text-purple-600 dark:text-purple-500" : "text-slate-500"}`}>
+                全探索結果を俯瞰する
+              </div>
+            </div>
+          </div>
         </button>
       </div>
 
@@ -200,9 +219,28 @@ export function InsightsTab() {
         <div className="text-center py-12 text-slate-500 dark:text-slate-400">読み込み中...</div>
       ) : (
         <>
-          {/* 学習パターンサブタブ */}
+          {/* 学習パターンタブ */}
           {activeSubTab === "patterns" && (
             <div className="space-y-6">
+              {/* 違いを明確にするヘッダー */}
+              <div className="p-4 bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 rounded-lg border-2 border-amber-300 dark:border-amber-700">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">📝</span>
+                  <div>
+                    <h2 className="text-lg font-bold text-amber-800 dark:text-amber-200">
+                      学習パターン ＝「あなたの判断基準」を形式知化
+                    </h2>
+                    <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                      <strong>入力：</strong>あなたが「採用」「却下」した勝ち筋の履歴<br />
+                      <strong>出力：</strong>「こういう勝ち筋は良い／悪い」というルール（成功・失敗パターン）
+                    </p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 italic">
+                      → 次回の探索で「あなた好みの提案」が出やすくなる
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* 学習パターンの仕組み説明 */}
               <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
                 <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">
@@ -425,9 +463,28 @@ export function InsightsTab() {
             </div>
           )}
 
-          {/* メタ分析サブタブ */}
+          {/* メタ分析タブ */}
           {activeSubTab === "meta" && (
             <div className="space-y-6">
+              {/* 違いを明確にするヘッダー */}
+              <div className="p-4 bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900/30 dark:to-indigo-900/30 rounded-lg border-2 border-purple-300 dark:border-purple-700">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">🔭</span>
+                  <div>
+                    <h2 className="text-lg font-bold text-purple-800 dark:text-purple-200">
+                      メタ分析 ＝「全探索結果の俯瞰」で本質を発見
+                    </h2>
+                    <p className="text-sm text-purple-700 dark:text-purple-300 mt-1">
+                      <strong>入力：</strong>これまでの全ての探索結果（問い＋勝ち筋）<br />
+                      <strong>出力：</strong>何度も出現する「勝ち筋の勝ち筋」＋ 探索されていない「盲点」
+                    </p>
+                    <p className="text-xs text-purple-600 dark:text-purple-400 mt-2 italic">
+                      → 個別の探索では見えない「全体像」と「次に探るべき方向」がわかる
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* メタ分析の説明 */}
               <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
                 <p className="text-sm font-medium text-purple-800 dark:text-purple-200 mb-3">
@@ -440,8 +497,8 @@ export function InsightsTab() {
                       実施目的（なぜ行うのか）
                     </p>
                     <p>
-                      個別の探索では「その問いに対する勝ち筋」しか見えません。メタ分析は、複数の探索結果を俯瞰し、
-                      <span className="font-medium">「勝ち筋の勝ち筋」</span>（何度も出現する本質的な勝ちパターン）を発見します。
+                      個別の探索では「その問いに対する勝ち筋」しか見えません。メタ分析は、過去のすべての探索結果を俯瞰し、
+                      <span className="font-medium">何度も出現する本質的な勝ちパターン</span>を発見します。
                       木を見て森を見ず、にならないための分析です。
                     </p>
                   </div>

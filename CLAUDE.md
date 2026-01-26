@@ -6,21 +6,21 @@
 - アプリに変更を加えた後は、**必ず該当ページのURLを提示**する
 - ローカル、Azure、本番環境いずれの場合も同様
 - ユーザーが`Ctrl+クリック`でページを開けるようにする
-- 例: `http://localhost:3000/explore`
+- 例: `http://localhost:3006/explore`
 
 ## 開発サーバー
 
-### ポート番号は固定（3000）
-- 開発サーバーは **常にポート3000** で起動する
-- ポート3000が使用中の場合は、**別のポートに変更せず**、以下の手順で対応：
-  1. `netstat -ano | grep ":3000"` でプロセスIDを確認
+### ポート番号は固定（3006）
+- 開発サーバーは **常にポート3006** で起動する（旧バージョンの3000と区別）
+- ポート3006が使用中の場合は、**別のポートに変更せず**、以下の手順で対応：
+  1. `netstat -ano | findstr ":3006"` でプロセスIDを確認
   2. `powershell -Command "Stop-Process -Id <PID> -Force"` でプロセスを終了
   3. ポートが解放されたことを確認してから `npm run dev` を実行
 
 ### サーバー起動手順
 ```bash
 # 1. ポート確認
-netstat -ano | grep ":3000"
+netstat -ano | findstr ":3006"
 
 # 2. 使用中なら解放
 powershell -Command "Stop-Process -Id <PID> -Force"
@@ -39,8 +39,8 @@ npm run dev
 
 1. **APIテスト**（curl）
    ```bash
-   curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/
-   curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/core/services
+   curl -s -o /dev/null -w "%{http_code}" http://localhost:3006/
+   curl -s -o /dev/null -w "%{http_code}" http://localhost:3006/api/core/services
    ```
 
 2. **Playwrightテスト**（ブラウザ操作テスト）
@@ -81,7 +81,7 @@ const ids = [/* ローカルのドキュメントIDリスト - api/ragで取得 
 async function main() {
   const docs = [];
   for (const id of ids) {
-    const res = await fetch('http://localhost:3000/api/rag?id=' + id);
+    const res = await fetch('http://localhost:3006/api/rag?id=' + id);
     const data = await res.json();
     if (data.document) {
       docs.push({

@@ -108,6 +108,34 @@ export function HistoryTab() {
     }
   };
 
+  const handleClearDecision = async (
+    explorationId: string,
+    strategyName: string
+  ) => {
+    try {
+      const res = await fetch(
+        `/api/decisions?explorationId=${encodeURIComponent(explorationId)}&strategyName=${encodeURIComponent(strategyName)}`,
+        { method: "DELETE" }
+      );
+
+      if (res.ok) {
+        setDecisions((prev) => {
+          const updated = { ...prev };
+          if (updated[explorationId]) {
+            const { [strategyName]: _, ...rest } = updated[explorationId];
+            updated[explorationId] = rest;
+          }
+          return updated;
+        });
+      } else {
+        alert("採否のクリアに失敗しました");
+      }
+    } catch (error) {
+      console.error("Failed to clear decision:", error);
+      alert("採否のクリアに失敗しました");
+    }
+  };
+
   const getDecisionSummary = (explorationId: string) => {
     const expDecisions = decisions[explorationId] || {};
     const values = Object.values(expDecisions);
@@ -175,11 +203,7 @@ export function HistoryTab() {
   const statusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return (
-          <span className="px-2 py-0.5 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded">
-            完了
-          </span>
-        );
+        return null;
       case "failed":
         return (
           <span className="px-2 py-0.5 text-xs bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 rounded">
@@ -219,12 +243,15 @@ export function HistoryTab() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">探索履歴</h1>
         <Button variant="outline" onClick={fetchData}>
           更新
         </Button>
       </div>
+      <p className="text-slate-600 dark:text-slate-400 mb-6">
+        過去の探索結果をすべて一覧で確認できます。ここから勝ち筋ごとに改めて採否を判断し、その履歴を学習パターンの抽出に活用します。
+      </p>
 
       {/* サブタブ */}
       <div className="flex gap-1 mb-6 border-b border-slate-200 dark:border-slate-700">
@@ -286,6 +313,13 @@ export function HistoryTab() {
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
+                      <p className={`text-xs mb-1 font-medium ${
+                        isAutoExplore(exploration)
+                          ? "text-purple-600 dark:text-purple-400"
+                          : "text-blue-600 dark:text-blue-400"
+                      }`}>
+                        {isAutoExplore(exploration) ? "AIが作成した問い：" : "ユーザーが入力した問い："}
+                      </p>
                       <h3 className="font-medium text-slate-900 dark:text-slate-100 mb-2">
                         {exploration.question}
                       </h3>
@@ -325,7 +359,7 @@ export function HistoryTab() {
                         size="sm"
                         onClick={() => setExpandedId(isExpanded ? null : exploration.id)}
                       >
-                        {isExpanded ? "閉じる" : "詳細"}
+                        {isExpanded ? "閉じる" : "探索された勝ち筋"}
                       </Button>
                       <Button
                         variant="outline"
@@ -428,9 +462,6 @@ export function HistoryTab() {
                                 )}
                                 {/* 決定ボタン */}
                                 <div className="flex items-center gap-2 pt-2 border-t border-slate-200 dark:border-slate-600">
-                                  <span className="text-xs text-slate-500 dark:text-slate-400 mr-2">
-                                    判定:
-                                  </span>
                                   <button
                                     onClick={() => handleDecision(exploration.id, strategy.name, "adopt")}
                                     className={`px-3 py-1 text-xs rounded transition-colors ${
@@ -451,16 +482,14 @@ export function HistoryTab() {
                                   >
                                     却下
                                   </button>
-                                  <button
-                                    onClick={() => handleDecision(exploration.id, strategy.name, "pending")}
-                                    className={`px-3 py-1 text-xs rounded transition-colors ${
-                                      decision?.decision === "pending"
-                                        ? "bg-yellow-600 text-white"
-                                        : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400"
-                                    }`}
-                                  >
-                                    保留
-                                  </button>
+                                  {decision && (
+                                    <button
+                                      onClick={() => handleClearDecision(exploration.id, strategy.name)}
+                                      className="px-3 py-1 text-xs rounded transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600"
+                                    >
+                                      クリアー
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             );

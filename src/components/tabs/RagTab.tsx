@@ -1,22 +1,10 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useApp, CoreService, categories } from "@/contexts/AppContext";
-import { Button } from "@/components/ui/button";
+import { useApp } from "@/contexts/AppContext";
 
 export function RagTab() {
-  const { services, setServices, servicesLoading, fetchServices, ragDocuments, fetchRAGDocuments } =
-    useApp();
-
-  // サービス編集
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    category: "",
-    description: "",
-    url: "",
-  });
+  const { ragDocuments, fetchRAGDocuments } = useApp();
 
   // RAG
   const [ragMessage, setRagMessage] = useState("");
@@ -29,69 +17,6 @@ export function RagTab() {
     fileType: string;
   } | null>(null);
   const [ragDocLoading, setRagDocLoading] = useState(false);
-
-  // サービス管理
-  const handleAddService = () => {
-    setIsEditing(true);
-    setEditingId(null);
-    setFormData({ name: "", category: "", description: "", url: "" });
-  };
-
-  const handleEditService = (service: CoreService) => {
-    setIsEditing(true);
-    setEditingId(service.id);
-    setFormData({
-      name: service.name,
-      category: service.category || "",
-      description: service.description || "",
-      url: service.url || "",
-    });
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setEditingId(null);
-    setFormData({ name: "", category: "", description: "", url: "" });
-  };
-
-  const handleSubmitService = async () => {
-    if (!formData.name.trim()) {
-      alert("名前は必須です");
-      return;
-    }
-
-    try {
-      const url = "/api/core/services";
-      const method = editingId ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingId ? { ...formData, id: editingId } : formData),
-      });
-
-      if (res.ok) {
-        fetchServices();
-        handleCancelEdit();
-      } else {
-        const data = await res.json();
-        alert(`エラー: ${data.error}`);
-      }
-    } catch (error) {
-      alert("保存に失敗しました");
-    }
-  };
-
-  const handleDeleteService = async (id: string) => {
-    if (!confirm("この事業・サービスを削除しますか？")) return;
-    try {
-      const res = await fetch(`/api/core/services?id=${id}`, { method: "DELETE" });
-      if (res.ok) {
-        fetchServices();
-      }
-    } catch (error) {
-      alert("削除に失敗しました");
-    }
-  };
 
   // RAG管理
   const handleRAGUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,7 +90,7 @@ export function RagTab() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">RAG情報</h1>
           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
@@ -173,6 +98,11 @@ export function RagTab() {
           </p>
         </div>
       </div>
+
+      {/* 案内メッセージ */}
+      <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+        ドキュメントの登録が完了したら、SWOT分析に進んでください。登録内容はいつでも追加・削除できます。
+      </p>
 
       {/* RAGの説明（折り畳み式） */}
       <div className="mb-6 bg-sky-50 dark:bg-sky-900/20 rounded-lg border border-sky-200 dark:border-sky-800">
@@ -190,6 +120,16 @@ export function RagTab() {
 
         {ragExplanationOpen && (
           <div className="px-4 pb-4 space-y-3 text-xs text-sky-700 dark:text-sky-300">
+            <div>
+              <p className="font-medium text-sky-800 dark:text-sky-200 mb-1">
+                RAGとは
+              </p>
+              <p>
+                RAG（Retrieval-Augmented Generation）は、<span className="font-medium">AIが回答を生成する際に外部の情報源を検索・参照する技術</span>です。
+                通常のAIは学習時のデータのみで回答しますが、RAGを使うことで<span className="font-medium">最新の情報や専門的な資料</span>を踏まえた、より正確で具体的な回答が可能になります。
+              </p>
+            </div>
+
             <div>
               <p className="font-medium text-sky-800 dark:text-sky-200 mb-1">
                 実施目的（なぜ行うのか）
@@ -228,185 +168,13 @@ export function RagTab() {
         )}
       </div>
 
-      {/* 追加/編集フォーム */}
-      {isEditing && (
-        <div className="mb-6 p-6 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800">
-          <h3 className="font-medium text-slate-900 dark:text-slate-100 mb-4 text-lg">
-            {editingId ? "事業・サービスを編集" : "事業・サービスを追加"}
-          </h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-slate-700 dark:text-slate-300 mb-1">名前 *</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="例: 操船シミュレータ研修、船舶管理サービス"
-                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-slate-700 dark:text-slate-300 mb-1">
-                カテゴリ
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, category: cat })}
-                    className={`px-3 py-1 text-sm rounded ${
-                      formData.category === cat
-                        ? "bg-blue-600 text-white"
-                        : "bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm text-slate-700 dark:text-slate-300 mb-1">説明</label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={2}
-                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-slate-700 dark:text-slate-300 mb-1">URL</label>
-              <input
-                type="text"
-                value={formData.url}
-                onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleSubmitService}>保存</Button>
-              <Button variant="outline" onClick={handleCancelEdit}>
-                キャンセル
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 自社の事業・サービス */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              自社の事業・サービス
-              <span className="ml-2 text-sm font-normal text-slate-500 dark:text-slate-400">（任意）</span>
-              <span className="ml-2 text-sm font-normal text-slate-400 dark:text-slate-500">
-                {services.length}件
-              </span>
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              貴社が提供している事業やサービスを登録すると、AIがそれを前提に勝ち筋を提案します。
-            </p>
-          </div>
-          <Button onClick={handleAddService} size="sm">+ 事業・サービスを追加</Button>
-        </div>
-        {servicesLoading ? (
-          <p className="text-slate-500 dark:text-slate-400">読み込み中...</p>
-        ) : services.length > 0 ? (
-          <div className="space-y-3">
-            {services.map((service) => (
-              <div
-                key={service.id}
-                className="p-4 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 flex items-start justify-between"
-              >
-                <div>
-                  <h4 className="font-medium text-slate-900 dark:text-slate-100">{service.name}</h4>
-                  {service.category && (
-                    <span className="inline-block px-2 py-0.5 text-xs bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded mt-1">
-                      {service.category}
-                    </span>
-                  )}
-                  {service.description && (
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                      {service.description}
-                    </p>
-                  )}
-                  {service.url && (
-                    <a
-                      href={service.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1 block"
-                    >
-                      {service.url}
-                    </a>
-                  )}
-                </div>
-                <div className="flex gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => handleEditService(service)}
-                    className="px-2 py-1 text-xs bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-300 dark:hover:bg-slate-500"
-                  >
-                    編集
-                  </button>
-                  <button
-                    onClick={() => handleDeleteService(service.id)}
-                    className="px-2 py-1 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800"
-                  >
-                    削除
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-6 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 border-dashed">
-            <p className="text-slate-400 dark:text-slate-500 text-sm">
-              まだ登録がありません
-            </p>
-            <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">
-              未登録でも探索は可能です
-            </p>
-          </div>
-        )}
-      </div>
-
       {/* RAGドキュメントセクション */}
       <div className="p-6 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-blue-800 dark:text-blue-200">
-              RAGドキュメント
-            </h2>
-            <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
-              探索時に参照される外部ドキュメント
-            </p>
-          </div>
-          <label>
-            <span
-              className={`px-4 py-2 text-sm rounded cursor-pointer ${
-                ragUploading
-                  ? "bg-slate-300 text-slate-500"
-                  : "bg-blue-600 text-white hover:bg-blue-700"
-              }`}
-            >
-              {ragUploading ? "アップロード中..." : "+ ドキュメント追加"}
-            </span>
-            <input
-              ref={ragFileInputRef}
-              type="file"
-              accept=".pdf,.txt,.md,.json,.docx,.csv,.pptx"
-              className="hidden"
-              onChange={handleRAGUpload}
-              disabled={ragUploading}
-            />
-          </label>
+          <h2 className="text-lg font-semibold text-blue-800 dark:text-blue-200">
+            RAGドキュメント
+          </h2>
         </div>
-
-        <p className="text-xs text-blue-600 dark:text-blue-400 mb-4">
-          対応形式: PDF, TXT, MD, JSON, DOCX, CSV, PPTX
-        </p>
 
         {ragMessage && (
           <div className="mb-4 p-3 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-sm flex items-center justify-between">
@@ -420,13 +188,70 @@ export function RagTab() {
           </div>
         )}
 
-        {ragDocuments.length === 0 ? (
-          <p className="text-sm text-blue-500 dark:text-blue-400 text-center py-4">
-            ドキュメントがまだ登録されていません
+        {/* ネット情報 */}
+        <div className="mb-4 pb-4 border-b border-blue-200 dark:border-blue-800">
+          <p className="text-blue-700 dark:text-blue-300 mb-2 font-medium">ネット情報</p>
+          <ul className="space-y-1 ml-4">
+            <li className="text-blue-700 dark:text-blue-300 flex items-center gap-2 text-sm">
+              <span className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0"></span>
+              <a
+                href="https://www.mol-maritex.co.jp/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline"
+              >
+                商船三井マリテックス（自社）
+              </a>
+            </li>
+            <li className="text-blue-700 dark:text-blue-300 flex items-center gap-2 text-sm">
+              <span className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0"></span>
+              <a
+                href="https://www.mol.co.jp/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline"
+              >
+                商船三井
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        {/* 文書情報 */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-blue-700 dark:text-blue-300 font-medium">文書情報</p>
+            <label>
+              <span
+                className={`px-3 py-1.5 text-xs rounded cursor-pointer ${
+                  ragUploading
+                    ? "bg-slate-300 text-slate-500"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
+              >
+                {ragUploading ? "アップロード中..." : "+ 追加"}
+              </span>
+              <input
+                ref={ragFileInputRef}
+                type="file"
+                accept=".pdf,.txt,.md,.json,.docx,.csv,.pptx"
+                className="hidden"
+                onChange={handleRAGUpload}
+                disabled={ragUploading}
+              />
+            </label>
+          </div>
+          <p className="text-xs text-blue-500 dark:text-blue-400 mb-3 ml-4">
+            対応形式: PDF, TXT, MD, JSON, DOCX, CSV, PPTX
           </p>
-        ) : (
-          <ul className="space-y-2">
-            {ragDocuments.map((doc) => (
+
+          {ragDocuments.length === 0 ? (
+            <p className="text-sm text-blue-500 dark:text-blue-400 text-center py-4">
+              ドキュメントがまだ登録されていません
+            </p>
+          ) : (
+            <ul className="space-y-2 ml-4">
+              {ragDocuments.map((doc) => (
               <li
                 key={doc.id}
                 className="flex items-center justify-between text-sm text-blue-700 dark:text-blue-300 bg-white dark:bg-slate-800 p-3 rounded"
@@ -441,43 +266,20 @@ export function RagTab() {
                   <span className="hover:underline">{doc.filename}</span>
                 </button>
                 <button
-                  className="text-red-500 hover:text-red-700 dark:hover:text-red-400 ml-2"
+                  className="text-red-500 hover:text-red-700 dark:hover:text-red-400 ml-2 p-1"
                   onClick={() => handleRAGDelete(doc.id, doc.filename)}
+                  title="削除"
                 >
-                  削除
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
                 </button>
               </li>
             ))}
           </ul>
         )}
-
-        <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-800">
-          <p className="text-blue-600 dark:text-blue-400 mb-2 font-medium" style={{ fontSize: '120%' }}>自動参照されるWebサイト情報:</p>
-          <ul className="space-y-1">
-            <li className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0"></span>
-              <a
-                href="https://www.mol-maritex.co.jp/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline"
-              >
-                商船三井マリテックス（自社）
-              </a>
-            </li>
-            <li className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0"></span>
-              <a
-                href="https://www.mol.co.jp/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline"
-              >
-                商船三井
-              </a>
-            </li>
-          </ul>
         </div>
+
       </div>
 
       {/* RAGドキュメント内容表示モーダル */}

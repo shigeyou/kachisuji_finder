@@ -12,7 +12,6 @@ interface Strategy {
   totalScore: number;
   scores?: Record<string, number>;
   question: string;
-  judgment?: string;
   createdAt?: string;
   explorationId?: string;
 }
@@ -125,26 +124,33 @@ export function RankingTab() {
     }
   };
 
-  const judgmentBadge = (judgment?: string) => {
-    if (judgment === "優先投資") {
-      return (
-        <span className="px-2 py-0.5 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded">
-          優先投資
-        </span>
+  const handleClearSingleDecision = async (strategy: Strategy) => {
+    const decision = allDecisions[strategy.name];
+    if (!decision) return;
+
+    try {
+      const res = await fetch(
+        `/api/decisions?explorationId=${encodeURIComponent(decision.explorationId)}&strategyName=${encodeURIComponent(strategy.name)}`,
+        { method: "DELETE" }
       );
-    } else if (judgment === "条件付き") {
-      return (
-        <span className="px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 rounded">
-          条件付き
-        </span>
-      );
+
+      if (res.ok) {
+        setAllDecisions((prev) => {
+          const { [strategy.name]: _, ...rest } = prev;
+          return rest;
+        });
+      } else {
+        alert("採否のクリアに失敗しました");
+      }
+    } catch (error) {
+      console.error("Failed to clear decision:", error);
+      alert("採否のクリアに失敗しました");
     }
-    return null;
   };
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">ランキング</h1>
         <div className="flex items-center gap-4">
           <span className="text-sm text-slate-500 dark:text-slate-400">
@@ -162,6 +168,14 @@ export function RankingTab() {
           )}
         </div>
       </div>
+      <p className="text-slate-600 dark:text-slate-400 mb-2">
+        高スコアの勝ち筋を一覧し、採用・却下を判断して次のアクションにつなげます。
+      </p>
+
+      {/* 案内メッセージ */}
+      <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+        採否を判断したら、「インサイト」で学習パターンを抽出したり、「シン・勝ち筋の探求」で進化生成を行えます。
+      </p>
 
       {loading ? (
         <div className="text-center py-12 text-slate-500 dark:text-slate-400">読み込み中...</div>
@@ -183,9 +197,6 @@ export function RankingTab() {
                 </th>
                 <th className="text-center py-3 px-3 text-xs font-medium text-slate-500 dark:text-slate-400">
                   スコア
-                </th>
-                <th className="text-center py-3 px-3 text-xs font-medium text-slate-500 dark:text-slate-400">
-                  判定
                 </th>
                 <th className="text-center py-3 px-3 text-xs font-medium text-slate-500 dark:text-slate-400">
                   採否
@@ -281,31 +292,36 @@ export function RankingTab() {
                         {strategy.totalScore?.toFixed(1)}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-center align-top">{judgmentBadge(strategy.judgment)}</td>
                     <td className="py-3 px-3 text-center align-top">
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDecision(strategy, "adopt"); }}
-                          className={`px-2 py-0.5 text-xs rounded transition-colors ${
+                          className={`px-3 py-1 text-xs rounded transition-colors ${
                             allDecisions[strategy.name]?.decision === "adopt"
                               ? "bg-green-600 text-white"
                               : "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400"
                           }`}
-                          title="採用"
                         >
-                          ✓
+                          採用
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDecision(strategy, "reject"); }}
-                          className={`px-2 py-0.5 text-xs rounded transition-colors ${
+                          className={`px-3 py-1 text-xs rounded transition-colors ${
                             allDecisions[strategy.name]?.decision === "reject"
                               ? "bg-red-600 text-white"
                               : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
                           }`}
-                          title="却下"
                         >
-                          ✕
+                          却下
                         </button>
+                        {allDecisions[strategy.name] && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleClearSingleDecision(strategy); }}
+                            className="px-3 py-1 text-xs rounded transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600"
+                          >
+                            クリアー
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td className="py-3 px-3 text-center text-xs text-slate-500 dark:text-slate-400 align-top">

@@ -17,6 +17,15 @@ interface EvolvedStrategy {
   sourceStrategies: string[]; // 元になった戦略名
   evolveType: "mutation" | "crossover" | "refutation";
   improvement: string; // 元からの改善点
+  scores?: {
+    revenuePotential: number;
+    timeToRevenue: number;
+    competitiveAdvantage: number;
+    executionFeasibility: number;
+    hqContribution: number;
+    mergerSynergy: number;
+  };
+  totalScore?: number;
 }
 
 interface EvolveResult {
@@ -224,16 +233,33 @@ ${modeInstructions[mode]}
       "metrics": "成功を測る指標",
       "sourceStrategies": ["元になった戦略名1", "元になった戦略名2"],
       "evolveType": "mutation" | "crossover" | "refutation",
-      "improvement": "元戦略からの改善点・進化ポイント"
+      "improvement": "元戦略からの改善点・進化ポイント",
+      "scores": {
+        "revenuePotential": 1-5の数値,
+        "timeToRevenue": 1-5の数値,
+        "competitiveAdvantage": 1-5の数値,
+        "executionFeasibility": 1-5の数値,
+        "hqContribution": 1-5の数値,
+        "mergerSynergy": 1-5の数値
+      }
     }
   ],
   "thinkingProcess": "どのような思考で進化戦略を導いたか"
 }
 
+## スコア評価基準（各1-5点）
+- revenuePotential: 収益ポテンシャル
+- timeToRevenue: 収益化までの距離（近いほど高得点）
+- competitiveAdvantage: 勝ち筋の強さ
+- executionFeasibility: 実行可能性
+- hqContribution: 本社貢献
+- mergerSynergy: 合併シナジー
+
 重要：
 - 元の戦略の良さを活かしつつ、明確な改善点を持つ戦略を生成
 - 実行可能性を重視し、絵に描いた餅にならないように
-- 各戦略の元になった戦略を明記すること`;
+- 各戦略の元になった戦略を明記すること
+- 各戦略に6項目のスコアを必ず付けること`;
 
   console.log("[Evolve] Starting Azure OpenAI request...");
   console.log("[Evolve] Strategies count:", strategies.length);
@@ -282,13 +308,41 @@ ${modeInstructions[mode]}
   }
 }
 
+// スコアから加重平均を計算
+function calculateTotalScore(scores: {
+  revenuePotential: number;
+  timeToRevenue: number;
+  competitiveAdvantage: number;
+  executionFeasibility: number;
+  hqContribution: number;
+  mergerSynergy: number;
+}): number {
+  // デフォルトの重み（均等）
+  const weights = {
+    revenuePotential: 1,
+    timeToRevenue: 1,
+    competitiveAdvantage: 1,
+    executionFeasibility: 1,
+    hqContribution: 1,
+    mergerSynergy: 1,
+  };
+  const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
+  const weightedSum =
+    scores.revenuePotential * weights.revenuePotential +
+    scores.timeToRevenue * weights.timeToRevenue +
+    scores.competitiveAdvantage * weights.competitiveAdvantage +
+    scores.executionFeasibility * weights.executionFeasibility +
+    scores.hqContribution * weights.hqContribution +
+    scores.mergerSynergy * weights.mergerSynergy;
+  return weightedSum / totalWeight;
+}
+
 // POST: 進化生成を実行
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const mode: EvolveMode = body.mode || "all";
     const limit = body.limit || 5;
-    const saveAsExploration = body.save || false;
 
     // 採用された戦略を取得
     const strategies = await getAdoptedStrategies(limit);
@@ -317,43 +371,80 @@ export async function POST(request: NextRequest) {
     // 進化生成を実行
     const result = await evolveStrategies(strategies, mode, servicesText, assetsText);
 
-    // 探索として保存（オプション）
-    let explorationId: string | null = null;
-    if (saveAsExploration && result.strategies.length > 0) {
-      const exploration = await prisma.exploration.create({
-        data: {
-          question: `[進化生成] ${mode}モード - ${strategies.slice(0, 3).map((s) => s.name).join(", ")}から`,
-          context: `元戦略: ${strategies.map((s) => s.name).join(", ")}`,
-          constraints: "[]",
-          status: "completed",
-          result: JSON.stringify({
-            strategies: result.strategies.map((s) => ({
-              name: s.name,
-              reason: s.reason,
-              howToObtain: s.howToObtain,
-              metrics: s.metrics,
-              confidence: "medium",
-              tags: [s.evolveType, "進化生成"],
-            })),
-            thinkingProcess: result.thinkingProcess,
-            evolveMetadata: {
-              mode,
-              sourceStrategies: strategies.map((s) => s.name),
+    // スコアを計算して戦略に追加
+    const strategiesWithScores = result.strategies.map((s) => {
+      if (s.scores) {
+        const totalScore = calculateTotalScore(s.scores);
+        return { ...s, totalScore };
+      }
+      return s;
+    });
+
+    // 探索として保存
+    const exploration = await prisma.exploration.create({
+      data: {
+        question: `[進化生成] ${mode}モード - ${strategies.slice(0, 3).map((s) => s.name).join(", ")}から`,
+        context: `[進化生成] 元戦略: ${strategies.map((s) => s.name).join(", ")}`,
+        constraints: "[]",
+        status: "completed",
+        result: JSON.stringify({
+          strategies: strategiesWithScores.map((s) => ({
+            name: s.name,
+            reason: s.reason,
+            howToObtain: s.howToObtain,
+            metrics: s.metrics,
+            scores: s.scores,
+            totalScore: s.totalScore,
+            confidence: "medium",
+            tags: [s.evolveType, "進化生成"],
+          })),
+          thinkingProcess: result.thinkingProcess,
+          evolveMetadata: {
+            mode,
+            sourceStrategies: strategies.map((s) => s.name),
+          },
+        }),
+      },
+    });
+
+    // 高スコア（4.0以上）の戦略をランキング（TopStrategy）に自動登録
+    let archivedCount = 0;
+    for (const strategy of strategiesWithScores) {
+      if (strategy.totalScore && strategy.totalScore >= 4.0 && strategy.scores) {
+        // 既存チェック
+        const existing = await prisma.topStrategy.findFirst({
+          where: { name: strategy.name },
+        });
+
+        if (!existing) {
+          await prisma.topStrategy.create({
+            data: {
+              explorationId: exploration.id,
+              name: strategy.name,
+              reason: strategy.reason,
+              howToObtain: strategy.howToObtain,
+              totalScore: strategy.totalScore,
+              scores: JSON.stringify(strategy.scores),
+              question: `[進化生成] ${strategy.evolveType}`,
+              judgment: "",
             },
-          }),
-        },
-      });
-      explorationId = exploration.id;
+          });
+          archivedCount++;
+        }
+      }
     }
+
+    console.log(`[Evolve] Archived ${archivedCount} high-score strategies to ranking`);
 
     return NextResponse.json({
       success: true,
       mode,
       sourceCount: strategies.length,
-      generatedCount: result.strategies.length,
-      strategies: result.strategies,
+      generatedCount: strategiesWithScores.length,
+      archivedCount,
+      strategies: strategiesWithScores,
       thinkingProcess: result.thinkingProcess,
-      explorationId,
+      explorationId: exploration.id,
     });
   } catch (error) {
     console.error("Evolve error:", error);

@@ -9,12 +9,14 @@ interface TabItem {
 }
 
 const tabItems: TabItem[] = [
+  { id: "intro", label: "はじめに" },
   { id: "rag", label: "RAG情報" },
   { id: "swot", label: "SWOT" },
   { id: "score", label: "スコア設定" },
   { id: "explore", label: "勝ち筋探索" },
-  { id: "strategies", label: "シン・勝ち筋の探求" },
   { id: "ranking", label: "ランキング" },
+  { id: "strategies", label: "シン・勝ち筋の探求" },
+  { id: "insights", label: "インサイト" },
   { id: "history", label: "探索履歴" },
 ];
 
@@ -34,7 +36,7 @@ export function Navigation() {
               企業の勝ち筋をAIで探索する
             </p>
             <p className="text-[1.35rem] font-bold text-slate-900 dark:text-slate-100">
-              勝ち筋ファインダー <span className="text-[1.225rem] font-normal text-slate-500 dark:text-slate-400">Ver.0.5</span>
+              勝ち筋ファインダー <span className="text-[1.225rem] font-normal text-slate-500 dark:text-slate-400">Ver.0.6</span>
             </p>
           </button>
 
@@ -43,8 +45,9 @@ export function Navigation() {
             {tabItems.map((item) => {
               const isActive = activeTab === item.id;
               const isExploring = item.id === "explore" && explorationStatus === "running";
-              const isStrategiesRunning = item.id === "strategies" && (evolveStatus === "running" || autoExploreStatus === "running" || metaAnalysisStatus === "running");
-              const showIndicator = isExploring || isStrategiesRunning;
+              const isStrategiesRunning = item.id === "strategies" && (evolveStatus === "running" || autoExploreStatus === "running");
+              const isInsightsRunning = item.id === "insights" && metaAnalysisStatus === "running";
+              const showIndicator = isExploring || isStrategiesRunning || isInsightsRunning;
 
               return (
                 <button
@@ -60,10 +63,10 @@ export function Navigation() {
                   {showIndicator && (
                     <span className="absolute -top-1 -right-1 flex h-3 w-3">
                       <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${
-                        isStrategiesRunning ? "bg-emerald-400" : "bg-blue-400"
+                        isStrategiesRunning ? "bg-emerald-400" : isInsightsRunning ? "bg-purple-400" : "bg-blue-400"
                       } opacity-75`}></span>
                       <span className={`relative inline-flex rounded-full h-3 w-3 ${
-                        isStrategiesRunning ? "bg-emerald-500" : "bg-blue-500"
+                        isStrategiesRunning ? "bg-emerald-500" : isInsightsRunning ? "bg-purple-500" : "bg-blue-500"
                       }`}></span>
                     </span>
                   )}

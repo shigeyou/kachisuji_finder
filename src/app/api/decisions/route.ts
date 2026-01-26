@@ -139,10 +139,42 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+    const clearAll = searchParams.get("clearAll");
+    const clearRanking = searchParams.get("clearRanking");
 
+    // ランキングの採否をすべてクリア
+    if (clearRanking === "true") {
+      const result = await prisma.strategyDecision.deleteMany({
+        where: {
+          explorationId: { startsWith: "ranking-" },
+        },
+      });
+      return NextResponse.json({ success: true, deleted: result.count });
+    }
+
+    // すべての採否をクリア
+    if (clearAll === "true") {
+      const result = await prisma.strategyDecision.deleteMany({});
+      return NextResponse.json({ success: true, deleted: result.count });
+    }
+
+    // explorationId + strategyName で削除
+    const explorationId = searchParams.get("explorationId");
+    const strategyName = searchParams.get("strategyName");
+    if (explorationId && strategyName) {
+      const result = await prisma.strategyDecision.deleteMany({
+        where: {
+          explorationId,
+          strategyName,
+        },
+      });
+      return NextResponse.json({ success: true, deleted: result.count });
+    }
+
+    // 個別削除（idで）
     if (!id) {
       return NextResponse.json(
-        { error: "id は必須です" },
+        { error: "id または explorationId + strategyName は必須です" },
         { status: 400 }
       );
     }

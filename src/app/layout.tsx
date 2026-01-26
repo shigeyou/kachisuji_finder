@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "勝ち筋ファインダー",
-  description: "AIを活用した戦略立案支援ツール - 勝ち筋を見つける",
+  description: "AIを活用した勝ち筋探索ツール",
 };
 
 export default function RootLayout({

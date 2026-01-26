@@ -93,7 +93,7 @@ export async function generateWinningStrategies(
   // 学習パターンを取得
   const { successPatterns, failurePatterns } = await getLearningPatterns();
 
-  const systemPrompt = `あなたは「勝ち筋ファインダーVer.0.5」のAIアシスタントです。
+  const systemPrompt = `あなたは「勝ち筋ファインダーVer.0.6」のAIアシスタントです。
 海運グループ企業の戦略立案を支援します。
 
 ## あなたの役割

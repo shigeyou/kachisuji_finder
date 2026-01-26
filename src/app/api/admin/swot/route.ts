@@ -45,13 +45,7 @@ export async function POST(request: NextRequest) {
 
     // AI生成モード
     if (regenerate) {
-      // コア情報を取得
-      const coreServices = await prisma.coreService.findMany();
-      const servicesText = coreServices.length > 0
-        ? coreServices.map(s => `- ${s.name}${s.category ? ` (${s.category})` : ""}${s.description ? `: ${s.description}` : ""}`).join("\n")
-        : "";
-
-      // RAGドキュメントも参照
+      // RAGドキュメントを参照
       const ragDocuments = await prisma.rAGDocument.findMany({
         select: { filename: true, content: true },
         take: 10,
@@ -63,15 +57,10 @@ export async function POST(request: NextRequest) {
       const prompt = `あなたは企業戦略コンサルタントです。以下の情報を基にSWOT分析を行ってください。
 
 ## 最重要ルール（必ず遵守）
-1. 「登録サービスなし」「サービスが未登録」「登録がない」等の表現を絶対に使用しないでください。
-2. 本システムへの登録状況は分析対象外です。登録の有無について一切言及しないでください。
-3. RAGドキュメント（会社資料）に記載されている事業・サービス・実績こそが正式な情報源です。
-4. 下記「追加登録サービス」欄が空欄でも、それは「RAGドキュメントと重複を避けるため意図的に空欄」であり、サービスが存在しないわけではありません。
+1. RAGドキュメント（会社資料）に記載されている事業・サービス・実績こそが正式な情報源です。
+2. 提供された資料に基づいて具体的かつ実用的な分析を行ってください。
 
-${servicesText ? `## 追加登録サービス（RAGドキュメントへの補足）
-${servicesText}
-
-` : ""}${ragContext ? `## 会社資料（RAGドキュメント）※最も重要な情報源
+${ragContext ? `## 会社資料（RAGドキュメント）※最も重要な情報源
 ${ragContext}
 
 ` : ""}${additionalInfo ? `## 補足情報・追加資料

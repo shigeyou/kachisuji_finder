@@ -79,9 +79,9 @@ export function ScoreSettingsTab() {
   };
 
   return (
-    <div className="h-full flex flex-col px-4 py-3" style={{ height: 'calc(100vh - 120px)' }}>
+    <div className="flex flex-col px-4 py-3" style={{ height: 'calc(100vh - 130px)', maxHeight: 'calc(100vh - 130px)' }}>
       {/* ヘッダー */}
-      <div className="flex items-center justify-between mb-3 flex-shrink-0">
+      <div className="flex items-center justify-between mb-2 flex-shrink-0">
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
             スコア設定{" "}
@@ -95,10 +95,15 @@ export function ScoreSettingsTab() {
         </div>
       </div>
 
+      {/* 案内メッセージ */}
+      <p className="text-xs text-slate-600 dark:text-slate-400 mb-3 flex-shrink-0">
+        デフォルト設定のまま進めて問題ありません。自社の評価基準に合わせたい場合のみ調整してください。
+      </p>
+
       {/* 2カラムレイアウト */}
-      <div className="flex-1 grid grid-cols-2 gap-4 min-h-0">
+      <div className="flex-1 grid grid-cols-2 gap-4 min-h-0 overflow-hidden">
         {/* 左カラム: スライダー */}
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 overflow-auto">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 overflow-y-auto h-full">
           <div className="flex items-center justify-between mb-3 sticky top-0 bg-white dark:bg-slate-800 pb-2 border-b border-slate-200 dark:border-slate-700">
             <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
               重み設定
@@ -112,14 +117,14 @@ export function ScoreSettingsTab() {
               デフォルトに戻す
             </Button>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {(Object.keys(weights) as (keyof ScoreWeights)[]).map((key) => {
               const desc = scoreDescriptions[key];
               const isExpanded = expandedAxis === key;
               const normalizedPct = getNormalizedPercentage(weights[key]);
 
               return (
-                <div key={key} className="space-y-1.5">
+                <div key={key} className="space-y-1">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
