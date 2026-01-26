@@ -234,7 +234,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 // ===== Provider =====
 export function AppProvider({ children }: { children: ReactNode }) {
   // タブ
-  const [activeTab, setActiveTab] = useState<TabType>("rag");
+  const [activeTab, setActiveTab] = useState<TabType>("intro");
 
   // SWOT
   const [swot, setSwot] = useState<SwotData | null>(null);
@@ -294,6 +294,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [presetQuestionsProgress, setPresetQuestionsProgress] = useState(0);
   const presetQuestionsProgressRef = useRef<NodeJS.Timeout | null>(null);
   const presetQuestionsStartTimeRef = useRef<number>(0);
+  const presetQuestionsMaxProgressRef = useRef<number>(0);
+
+  // 完了時に100%までアニメーションさせる関数
+  const animateToComplete = useCallback((
+    currentProgress: number,
+    setProgress: (p: number) => void,
+    onComplete: () => void,
+    duration: number = 1500 // デフォルト1.5秒
+  ) => {
+    const startProgress = currentProgress;
+    const startTime = Date.now();
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      // イージング: ease-out (減速)
+      const eased = 1 - Math.pow(1 - t, 3);
+      const newProgress = startProgress + (100 - startProgress) * eased;
+
+      setProgress(Math.min(newProgress, 100));
+
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setProgress(100);
+        // 100%表示を少し見せてから完了
+        setTimeout(onComplete, 300);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, []);
 
   // イージング関数: 前半ゆっくり→後半加速（尻上がり）
   // ユーザー要望: 前半を現在の50%の速度に抑え、93%付近での停滞感を解消
@@ -442,14 +474,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
             }))
             .sort((a: { totalScore: number }, b: { totalScore: number }) => b.totalScore - a.totalScore);
 
-          setExplorationResult({
+          const result = {
             id: data.id,
             question: data.question,
             strategies: strategiesWithScore,
             thinking: parsed.thinkingProcess,
+          };
+
+          // 100%までアニメーションしてから完了状態にする
+          animateToComplete(explorationMaxProgressRef.current, setExplorationProgress, () => {
+            setExplorationResult(result);
+            setExplorationStatus("completed");
           });
-          setExplorationStatus("completed");
-          setExplorationProgress(100);
         } else if (data.status === "failed") {
           // 失敗
           if (pollingRef.current) {
@@ -616,13 +652,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setEvolveStatus("failed");
         setEvolveProgress(0);
       } else {
-        setEvolveResult({
+        const result = {
           strategies: data.strategies || [],
           thinkingProcess: data.thinkingProcess || "",
           sourceCount: data.sourceCount || 0,
+          archivedCount: data.archivedCount,
+        };
+
+        // 100%までアニメーションしてから完了状態にする
+        animateToComplete(evolveMaxProgressRef.current, setEvolveProgress, () => {
+          setEvolveResult(result);
+          setEvolveStatus("completed");
         });
-        setEvolveStatus("completed");
-        setEvolveProgress(100);
       }
     } catch (error) {
       console.error("Evolve failed:", error);
@@ -691,7 +732,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setAutoExploreStatus("failed");
         setAutoExploreProgress(0);
       } else {
-        setAutoExploreResult({
+        const result = {
           questionsGenerated: data.questionsGenerated || 0,
           explorationsCompleted: data.explorationsCompleted || 0,
           highScoresFound: data.highScoresFound || 0,
@@ -702,9 +743,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           improvement: data.improvement,
           duration: data.duration,
           timestamp: data.timestamp || new Date().toISOString(),
+        };
+
+        // 100%までアニメーションしてから完了状態にする
+        animateToComplete(autoExploreMaxProgressRef.current, setAutoExploreProgress, () => {
+          setAutoExploreResult(result);
+          setAutoExploreStatus("completed");
         });
-        setAutoExploreStatus("completed");
-        setAutoExploreProgress(100);
       }
     } catch (error) {
       console.error("Auto-explore failed:", error);
@@ -790,9 +835,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           blindSpots: data.blindSpots || [],
           thinkingProcess: data.thinkingProcess || "",
         };
-        setMetaAnalysisResult(transformedResult);
-        setMetaAnalysisStatus("completed");
-        setMetaAnalysisProgress(100);
+
+        // 100%までアニメーションしてから完了状態にする
+        animateToComplete(metaAnalysisMaxProgressRef.current, setMetaAnalysisProgress, () => {
+          setMetaAnalysisResult(transformedResult);
+          setMetaAnalysisStatus("completed");
+        });
       }
     } catch (error) {
       console.error("Meta analysis failed:", error);
@@ -825,13 +873,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     presetQuestionsStartTimeRef.current = Date.now();
+    presetQuestionsMaxProgressRef.current = 0;
     setPresetQuestionsStatus("running");
     setPresetQuestionsProgress(0);
 
     // プログレスバーアニメーション（30秒想定）
     presetQuestionsProgressRef.current = setInterval(() => {
       const newProgress = calculateEasedProgress(presetQuestionsStartTimeRef.current, 30000);
-      setPresetQuestionsProgress(newProgress);
+      presetQuestionsMaxProgressRef.current = Math.max(presetQuestionsMaxProgressRef.current, newProgress);
+      setPresetQuestionsProgress(presetQuestionsMaxProgressRef.current);
     }, 500);
 
     try {
@@ -848,9 +898,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setPresetQuestionsStatus("failed");
         setPresetQuestionsProgress(0);
       } else {
-        setPresetQuestionsState(data.questions || presetQuestions);
-        setPresetQuestionsStatus("completed");
-        setPresetQuestionsProgress(100);
+        const questions = data.questions || presetQuestions;
+
+        // 100%までアニメーションしてから完了状態にする
+        animateToComplete(presetQuestionsMaxProgressRef.current, setPresetQuestionsProgress, () => {
+          setPresetQuestionsState(questions);
+          setPresetQuestionsStatus("completed");
+        });
       }
     } catch (error) {
       console.error("Preset questions generation failed:", error);

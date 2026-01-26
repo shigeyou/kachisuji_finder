@@ -287,8 +287,70 @@ export async function GET() {
     // Get AutoExploreRun history
     const runHistory = await prisma.autoExploreRun.findMany({
       orderBy: { startedAt: "desc" },
-      take: 10,
+      take: 5,
     });
+
+    // For each run, get related explorations (created between startedAt and completedAt)
+    const runHistoryWithStrategies = await Promise.all(
+      runHistory.map(async (run) => {
+        // Get explorations created during this run
+        const explorations = await prisma.exploration.findMany({
+          where: {
+            context: { contains: "[自動探索]" },
+            createdAt: {
+              gte: run.startedAt,
+              ...(run.completedAt ? { lte: run.completedAt } : {}),
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        // Extract strategies from explorations
+        const strategies: { name: string; question: string; totalScore: number }[] = [];
+        for (const exp of explorations) {
+          if (exp.result) {
+            try {
+              const parsed = typeof exp.result === "string" ? JSON.parse(exp.result) : exp.result;
+              for (const strategy of parsed.strategies || []) {
+                if (strategy.scores) {
+                  const score = calculateScore(strategy.scores);
+                  strategies.push({
+                    name: strategy.name,
+                    question: exp.question,
+                    totalScore: score,
+                  });
+                }
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+
+        // Sort by score and take top 10
+        strategies.sort((a, b) => b.totalScore - a.totalScore);
+        const topStrategies = strategies.slice(0, 10);
+
+        return {
+          id: run.id,
+          status: run.status,
+          triggerType: run.triggerType,
+          questionsGenerated: run.questionsGenerated,
+          explorationsCompleted: run.explorationsCompleted,
+          highScoresFound: run.highScoresFound,
+          topScore: run.topScore,
+          topStrategyName: run.topStrategyName,
+          baselineScore: run.baselineScore,
+          achievedScore: run.achievedScore,
+          improvement: run.improvement,
+          startedAt: run.startedAt,
+          completedAt: run.completedAt,
+          duration: run.duration,
+          errors: run.errors ? JSON.parse(run.errors) : [],
+          strategies: topStrategies,
+        };
+      })
+    );
 
     // Find recent auto-explorations (exploration records)
     const recentAutoExplorations = await prisma.exploration.findMany({
@@ -300,23 +362,7 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      runHistory: runHistory.map((run) => ({
-        id: run.id,
-        status: run.status,
-        triggerType: run.triggerType,
-        questionsGenerated: run.questionsGenerated,
-        explorationsCompleted: run.explorationsCompleted,
-        highScoresFound: run.highScoresFound,
-        topScore: run.topScore,
-        topStrategyName: run.topStrategyName,
-        baselineScore: run.baselineScore,
-        achievedScore: run.achievedScore,
-        improvement: run.improvement,
-        startedAt: run.startedAt,
-        completedAt: run.completedAt,
-        duration: run.duration,
-        errors: run.errors ? JSON.parse(run.errors) : [],
-      })),
+      runHistory: runHistoryWithStrategies,
       explorationCount: recentAutoExplorations.length,
       recentExplorations: recentAutoExplorations.map((e) => ({
         id: e.id,

@@ -23,6 +23,12 @@ interface EvolveInfo {
   topStrategyCount: number;
 }
 
+interface AutoExploreStrategy {
+  name: string;
+  question: string;
+  totalScore: number;
+}
+
 interface AutoExploreRunHistory {
   id: string;
   status: string;
@@ -37,13 +43,21 @@ interface AutoExploreRunHistory {
   completedAt: string | null;
   duration: number | null;
   errors: string[];
+  strategies?: AutoExploreStrategy[];
+}
+
+interface EvolveHistoryStrategy {
+  name: string;
+  evolveType: string;
+  sourceStrategies: string[];
+  totalScore?: number;
 }
 
 interface EvolveHistory {
   id: string;
   question: string;
   createdAt: string;
-  strategies?: EvolvedStrategy[];
+  strategies?: EvolveHistoryStrategy[];
 }
 
 export function StrategiesTab() {
@@ -71,6 +85,11 @@ export function StrategiesTab() {
 
   // AI自動探索の履歴
   const [autoExploreHistory, setAutoExploreHistory] = useState<AutoExploreRunHistory[]>([]);
+
+  // 進化生成履歴の展開状態
+  const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<string>>(new Set());
+  // AI自動探索履歴の展開状態
+  const [expandedAutoExploreIds, setExpandedAutoExploreIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchData();
@@ -119,14 +138,51 @@ export function StrategiesTab() {
   const evolveTypeLabel = (type: string) => {
     switch (type) {
       case "mutation":
-        return "一部を変える";
+        return "突然変異";
       case "crossover":
-        return "組み合わせ";
+        return "交差";
       case "refutation":
-        return "逆から考える";
+        return "反証";
       default:
         return type;
     }
+  };
+
+  const evolveTypeIcon = (type: string) => {
+    switch (type) {
+      case "mutation":
+        return "💡";
+      case "crossover":
+        return "🧬";
+      case "refutation":
+        return "🔄";
+      default:
+        return "•";
+    }
+  };
+
+  const toggleHistoryExpand = (id: string) => {
+    setExpandedHistoryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleAutoExploreExpand = (id: string) => {
+    setExpandedAutoExploreIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
   return (
@@ -137,26 +193,42 @@ export function StrategiesTab() {
       </p>
 
       {/* サブタブ */}
-      <div className="flex gap-1 mb-6 border-b border-slate-200 dark:border-slate-700">
+      <div className="flex gap-2 mb-6 border-b border-slate-200 dark:border-slate-700">
         <button
           onClick={() => setActiveSubTab("evolution")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
             activeSubTab === "evolution"
-              ? "border-blue-600 text-blue-600 dark:text-blue-400"
-              : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+              ? "border-indigo-500 text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20"
+              : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800"
           }`}
         >
-          進化生成
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🧬</span>
+            <div className="text-left">
+              <div>進化生成</div>
+              <div className={`text-xs ${activeSubTab === "evolution" ? "text-indigo-600 dark:text-indigo-500" : "text-slate-500"}`}>
+                採用した勝ち筋を進化させる
+              </div>
+            </div>
+          </div>
         </button>
         <button
           onClick={() => setActiveSubTab("auto-explore")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
             activeSubTab === "auto-explore"
-              ? "border-blue-600 text-blue-600 dark:text-blue-400"
-              : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+              ? "border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20"
+              : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800"
           }`}
         >
-          AI自動探索
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🤖</span>
+            <div className="text-left">
+              <div>AI自動探索</div>
+              <div className={`text-xs ${activeSubTab === "auto-explore" ? "text-emerald-600 dark:text-emerald-500" : "text-slate-500"}`}>
+                AIが自動で問いを立て探索
+              </div>
+            </div>
+          </div>
         </button>
       </div>
 
@@ -398,33 +470,106 @@ export function StrategiesTab() {
                 </div>
               )}
 
-              {/* 進化生成履歴 */}
+              {/* 進化生成履歴 - アコーディオン形式 */}
               {evolveHistory.length > 0 && (
                 <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6">
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
                     進化生成の履歴（最新5件）
                   </h3>
-                  <div className="space-y-3">
-                    {evolveHistory.map((history) => (
-                      <div
-                        key={history.id}
-                        className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600"
-                      >
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-slate-700 dark:text-slate-300">
-                            {history.question.replace("[進化生成] ", "")}
-                          </p>
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            {new Date(history.createdAt).toLocaleDateString("ja-JP", {
-                              month: "2-digit",
-                              day: "2-digit",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
+                  <div className="space-y-2">
+                    {evolveHistory.map((history) => {
+                      const isExpanded = expandedHistoryIds.has(history.id);
+                      const strategies = history.strategies || [];
+                      const topScore = strategies.length > 0
+                        ? Math.max(...strategies.map((s) => s.totalScore || 0))
+                        : null;
+
+                      return (
+                        <div
+                          key={history.id}
+                          className="rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden"
+                        >
+                          {/* ヘッダー（クリックで展開/折りたたみ） */}
+                          <button
+                            onClick={() => toggleHistoryExpand(history.id)}
+                            className="w-full p-3 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-slate-400 transition-transform ${isExpanded ? "rotate-90" : ""}`}>
+                                  ▶
+                                </span>
+                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                  {history.question.replace("[進化生成] ", "")}
+                                </span>
+                              </div>
+                              <span className="text-xs text-slate-500 dark:text-slate-400">
+                                {new Date(history.createdAt).toLocaleDateString("ja-JP", {
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 mt-1 ml-5">
+                              <span className="text-xs text-slate-500 dark:text-slate-400">
+                                🧬 {strategies.length}件生成
+                              </span>
+                              {topScore !== null && topScore > 0 && (
+                                <span className="text-xs text-amber-600 dark:text-amber-400">
+                                  最高 {topScore}点
+                                </span>
+                              )}
+                            </div>
+                          </button>
+
+                          {/* 展開時の詳細 */}
+                          {isExpanded && strategies.length > 0 && (
+                            <div className="border-t border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-3">
+                              <div className="space-y-2">
+                                {strategies.map((strategy, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="p-2 bg-slate-50 dark:bg-slate-700/30 rounded border border-slate-100 dark:border-slate-600"
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className={strategy.totalScore === topScore ? "text-amber-500" : "text-slate-400"}>
+                                          {strategy.totalScore === topScore ? "★" : "○"}
+                                        </span>
+                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                          {strategy.name}
+                                        </span>
+                                      </div>
+                                      {strategy.totalScore && (
+                                        <span className="text-xs font-medium text-slate-600 dark:text-slate-400 bg-slate-200 dark:bg-slate-600 px-1.5 py-0.5 rounded">
+                                          {strategy.totalScore}点
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1 ml-5 text-xs text-slate-500 dark:text-slate-400">
+                                      <span>{evolveTypeIcon(strategy.evolveType)} {evolveTypeLabel(strategy.evolveType)}</span>
+                                      <span>←</span>
+                                      <span className="truncate">{strategy.sourceStrategies.join(" + ")}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 展開時だが戦略がない場合 */}
+                          {isExpanded && strategies.length === 0 && (
+                            <div className="border-t border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-3">
+                              <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
+                                詳細情報がありません
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -610,97 +755,190 @@ export function StrategiesTab() {
                 </div>
               )}
 
-              {/* AI自動探索履歴 */}
+              {/* AI自動探索履歴 - アコーディオン形式 */}
               {autoExploreHistory.length > 0 && (
                 <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6">
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
-                    AI自動探索の履歴
+                    AI自動探索の履歴（最新5件）
                   </h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700">
-                          <th className="text-left py-2 px-3 text-xs font-medium text-slate-500 dark:text-slate-400">
-                            日時
-                          </th>
-                          <th className="text-center py-2 px-3 text-xs font-medium text-slate-500 dark:text-slate-400">
-                            ステータス
-                          </th>
-                          <th className="text-center py-2 px-3 text-xs font-medium text-slate-500 dark:text-slate-400">
-                            AIが作成した問い
-                          </th>
-                          <th className="text-center py-2 px-3 text-xs font-medium text-slate-500 dark:text-slate-400">
-                            高スコア
-                          </th>
-                          <th className="text-center py-2 px-3 text-xs font-medium text-slate-500 dark:text-slate-400">
-                            最高スコア
-                          </th>
-                          <th className="text-left py-2 px-3 text-xs font-medium text-slate-500 dark:text-slate-400">
-                            トップ勝ち筋
-                          </th>
-                          <th className="text-center py-2 px-3 text-xs font-medium text-slate-500 dark:text-slate-400">
-                            所要時間
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {autoExploreHistory.map((run) => (
-                          <tr
-                            key={run.id}
-                            className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                  <div className="space-y-2">
+                    {autoExploreHistory.map((run) => {
+                      const isExpanded = expandedAutoExploreIds.has(run.id);
+
+                      return (
+                        <div
+                          key={run.id}
+                          className="rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden"
+                        >
+                          {/* ヘッダー（クリックで展開/折りたたみ） */}
+                          <button
+                            onClick={() => toggleAutoExploreExpand(run.id)}
+                            className="w-full p-3 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
                           >
-                            <td className="py-2 px-3 text-slate-600 dark:text-slate-300">
-                              {new Date(run.startedAt).toLocaleString("ja-JP", {
-                                month: "2-digit",
-                                day: "2-digit",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </td>
-                            <td className="py-2 px-3 text-center">
-                              <span
-                                className={`px-2 py-0.5 text-xs rounded ${
-                                  run.status === "completed"
-                                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                    : run.status === "running"
-                                    ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-                                    : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                                }`}
-                              >
-                                {run.status === "completed" ? "完了" : run.status === "running" ? "実行中" : "失敗"}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-slate-400 transition-transform ${isExpanded ? "rotate-90" : ""}`}>
+                                  ▶
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 text-xs rounded ${
+                                    run.status === "completed"
+                                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                      : run.status === "running"
+                                      ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                                      : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                  }`}
+                                >
+                                  {run.status === "completed" ? "完了" : run.status === "running" ? "実行中" : "失敗"}
+                                </span>
+                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                  {run.topStrategyName ? `トップ: ${run.topStrategyName}` : "AI自動探索"}
+                                </span>
+                              </div>
+                              <span className="text-xs text-slate-500 dark:text-slate-400">
+                                {new Date(run.startedAt).toLocaleDateString("ja-JP", {
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
                               </span>
-                            </td>
-                            <td className="py-2 px-3 text-center text-slate-600 dark:text-slate-300">
-                              {run.questionsGenerated}
-                            </td>
-                            <td className="py-2 px-3 text-center">
-                              {run.highScoresFound > 0 ? (
-                                <span className="text-yellow-600 dark:text-yellow-400 font-medium">
-                                  {run.highScoresFound}件
+                            </div>
+                            <div className="flex items-center gap-3 mt-1 ml-5">
+                              <span className="text-xs text-slate-500 dark:text-slate-400">
+                                🤔 {run.questionsGenerated}件の問い
+                              </span>
+                              {run.highScoresFound > 0 && (
+                                <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                                  ⭐ 高スコア {run.highScoresFound}件
                                 </span>
-                              ) : (
-                                <span className="text-slate-400">-</span>
                               )}
-                            </td>
-                            <td className="py-2 px-3 text-center">
-                              {run.topScore ? (
-                                <span className="text-purple-600 dark:text-purple-400 font-medium">
-                                  {run.topScore.toFixed(2)}
+                              {run.topScore && (
+                                <span className="text-xs text-purple-600 dark:text-purple-400">
+                                  最高 {run.topScore.toFixed(2)}点
                                 </span>
-                              ) : (
-                                <span className="text-slate-400">-</span>
                               )}
-                            </td>
-                            <td className="py-2 px-3 text-slate-600 dark:text-slate-300 max-w-[200px] truncate">
-                              {run.topStrategyName || "-"}
-                            </td>
-                            <td className="py-2 px-3 text-center text-slate-500 dark:text-slate-400">
-                              {run.duration ? `${(run.duration / 60).toFixed(1)}分` : "-"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </div>
+                          </button>
+
+                          {/* 展開時の詳細 */}
+                          {isExpanded && (
+                            <div className="border-t border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-3">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                                <div className="p-2 bg-slate-50 dark:bg-slate-700/30 rounded text-center">
+                                  <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                                    {run.questionsGenerated}
+                                  </div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400">AIが作成した問い</div>
+                                </div>
+                                <div className="p-2 bg-slate-50 dark:bg-slate-700/30 rounded text-center">
+                                  <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                                    {run.explorationsCompleted}
+                                  </div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400">完了した探索</div>
+                                </div>
+                                <div className="p-2 bg-slate-50 dark:bg-slate-700/30 rounded text-center">
+                                  <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
+                                    {run.highScoresFound}
+                                  </div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400">高スコア（4.0以上）</div>
+                                </div>
+                                <div className="p-2 bg-slate-50 dark:bg-slate-700/30 rounded text-center">
+                                  <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                                    {run.topScore ? run.topScore.toFixed(2) : "-"}
+                                  </div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400">最高スコア</div>
+                                </div>
+                              </div>
+
+                              {/* 勝ち筋リスト */}
+                              {run.strategies && run.strategies.length > 0 && (
+                                <div className="mb-3">
+                                  <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
+                                    発見した勝ち筋（{run.strategies.length}件・スコア順）
+                                  </p>
+                                  <div className="space-y-2">
+                                    {run.strategies.map((strategy, idx) => {
+                                      const isTop = idx === 0;
+                                      return (
+                                        <div
+                                          key={idx}
+                                          className="p-2 bg-slate-50 dark:bg-slate-700/30 rounded border border-slate-100 dark:border-slate-600"
+                                        >
+                                          <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-center gap-2">
+                                              <span className={isTop ? "text-amber-500" : "text-slate-400"}>
+                                                {isTop ? "★" : "○"}
+                                              </span>
+                                              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                                {strategy.name}
+                                              </span>
+                                            </div>
+                                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                                              strategy.totalScore >= 4.0
+                                                ? "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200"
+                                                : "bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-400"
+                                            }`}>
+                                              {strategy.totalScore.toFixed(1)}点
+                                            </span>
+                                          </div>
+                                          <div className="mt-1 ml-5 text-xs text-slate-500 dark:text-slate-400 truncate">
+                                            問い: {strategy.question}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {run.topStrategyName && (!run.strategies || run.strategies.length === 0) && (
+                                <div className="p-2 bg-amber-50 dark:bg-amber-900/20 rounded border border-amber-200 dark:border-amber-800 mb-3">
+                                  <span className="text-xs text-slate-500 dark:text-slate-400">トップ勝ち筋: </span>
+                                  <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                                    {run.topStrategyName}
+                                  </span>
+                                </div>
+                              )}
+
+                              <div className="flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
+                                {run.duration && (
+                                  <span>所要時間: {(run.duration / 60).toFixed(1)}分</span>
+                                )}
+                                {run.improvement && (
+                                  <span className="text-green-600 dark:text-green-400">
+                                    改善: +{run.improvement.toFixed(2)}%
+                                  </span>
+                                )}
+                                {run.completedAt && (
+                                  <span>
+                                    完了: {new Date(run.completedAt).toLocaleString("ja-JP", {
+                                      month: "2-digit",
+                                      day: "2-digit",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                )}
+                              </div>
+
+                              {run.errors && run.errors.length > 0 && (
+                                <div className="mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+                                  <p className="text-xs text-red-600 dark:text-red-400 font-medium mb-1">
+                                    エラー（{run.errors.length}件）
+                                  </p>
+                                  <ul className="text-xs text-red-500 dark:text-red-400 list-disc list-inside">
+                                    {run.errors.map((error, i) => (
+                                      <li key={i}>{error}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

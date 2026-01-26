@@ -129,6 +129,7 @@ export function IntroTab() {
                 <li>・大量の情報を短時間で整理できる</li>
                 <li>・思考の壁打ち相手として有用</li>
                 <li>・人間が見落としがちな観点を補完</li>
+                <li>・前提整理を支援し、誰でも一定品質を出せる</li>
               </ul>
             </div>
             <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
@@ -138,6 +139,7 @@ export function IntroTab() {
                 <li>・最終判断は必ず人間が行う</li>
                 <li>・機密情報の取り扱いに注意</li>
                 <li>・過度な依存は思考力の低下を招く恐れ</li>
+                <li>・前提が不正確だと、結果も不正確になる（Garbage In, Garbage Out）</li>
               </ul>
             </div>
           </div>

@@ -197,13 +197,20 @@ export function CompanyProfileTab() {
       )}
 
       {/* 案内 */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-4 mb-6">
+      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-4 mb-4">
         <p className="text-sm text-blue-800 dark:text-blue-200">
           <strong>重要：</strong> ここで設定した企業情報がAIの探索対象となります。
           RAGに親会社などの関連企業の情報を登録する場合は、「親会社との関係」欄を設定することで、
           AIが適切に区別して探索できます。
         </p>
       </div>
+
+      {/* 設定済みの場合の案内 */}
+      {isConfigured && (
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+          このままでよければ次に進んで問題ありません。内容を変更したい場合は編集して「保存」してください。
+        </p>
+      )}
 
       {/* ホームページから読み込む */}
       <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 p-4 mb-6">

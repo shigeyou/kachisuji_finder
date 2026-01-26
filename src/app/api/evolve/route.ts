@@ -466,8 +466,8 @@ export async function GET() {
     // TopStrategy数を取得
     const topStrategyCount = await prisma.topStrategy.count();
 
-    // 最近の進化生成を取得
-    const recentEvolutions = await prisma.exploration.findMany({
+    // 最近の進化生成を取得（戦略情報も含む）
+    const recentEvolutionsRaw = await prisma.exploration.findMany({
       where: {
         question: { startsWith: "[進化生成]" },
       },
@@ -477,7 +477,45 @@ export async function GET() {
         id: true,
         question: true,
         createdAt: true,
+        result: true,
       },
+    });
+
+    // 戦略情報をパースして追加
+    const recentEvolutions = recentEvolutionsRaw.map((evolution) => {
+      let strategies: {
+        name: string;
+        evolveType: string;
+        sourceStrategies: string[];
+        totalScore?: number;
+      }[] = [];
+
+      if (evolution.result) {
+        try {
+          const parsed = JSON.parse(evolution.result);
+          strategies = (parsed.strategies || []).map((s: {
+            name: string;
+            evolveType?: string;
+            tags?: string[];
+            sourceStrategies?: string[];
+            totalScore?: number;
+          }) => ({
+            name: s.name,
+            evolveType: s.evolveType || (s.tags?.find((t: string) => ["mutation", "crossover", "refutation"].includes(t)) || "unknown"),
+            sourceStrategies: s.sourceStrategies || parsed.evolveMetadata?.sourceStrategies || [],
+            totalScore: s.totalScore,
+          }));
+        } catch {
+          // パース失敗時は空配列
+        }
+      }
+
+      return {
+        id: evolution.id,
+        question: evolution.question,
+        createdAt: evolution.createdAt,
+        strategies,
+      };
     });
 
     return NextResponse.json({

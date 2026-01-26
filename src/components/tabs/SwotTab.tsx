@@ -11,11 +11,40 @@ export function SwotTab() {
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [showAdditionalInput, setShowAdditionalInput] = useState(false);
 
+  // 100%までアニメーションさせる関数
+  const animateToComplete = (
+    currentProgress: number,
+    onComplete: () => void,
+    duration: number = 1500
+  ) => {
+    const startProgress = currentProgress;
+    const startTime = Date.now();
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const newProgress = startProgress + (100 - startProgress) * eased;
+
+      setSwotProgress(Math.min(newProgress, 100));
+
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setSwotProgress(100);
+        setTimeout(onComplete, 300);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  };
+
   const runSwotAnalysis = async () => {
     setIsAnalyzing(true);
     setSwotProgress(0);
     const startTime = Date.now();
     const expectedDuration = 150000; // 150秒想定（20%速度）
+    let maxProgress = 0;
 
     // イージング関数: 中盤ゆっくり→終盤加速→停滞感なし
     const calculateProgress = () => {
@@ -42,7 +71,9 @@ export function SwotTab() {
     };
 
     const progressInterval = setInterval(() => {
-      setSwotProgress(calculateProgress());
+      const newProgress = calculateProgress();
+      maxProgress = Math.max(maxProgress, newProgress);
+      setSwotProgress(maxProgress);
     }, 300);
 
     try {
@@ -55,21 +86,26 @@ export function SwotTab() {
         }),
       });
       clearInterval(progressInterval);
-      setSwotProgress(100);
 
       const data = await res.json();
       if (data.success) {
-        setSwot(data.swot);
+        // 100%までアニメーションしてから完了
+        animateToComplete(maxProgress, () => {
+          setSwot(data.swot);
+          setIsAnalyzing(false);
+          setSwotProgress(0);
+        });
       } else {
+        setIsAnalyzing(false);
+        setSwotProgress(0);
         alert("SWOT分析に失敗しました: " + (data.error || "不明なエラー"));
       }
     } catch (error) {
       console.error("SWOT analysis failed:", error);
       clearInterval(progressInterval);
-      alert("SWOT分析に失敗しました");
-    } finally {
       setIsAnalyzing(false);
       setSwotProgress(0);
+      alert("SWOT分析に失敗しました");
     }
   };
 

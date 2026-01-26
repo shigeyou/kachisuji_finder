@@ -54,7 +54,7 @@ export function Navigation() {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`px-3 py-1.5 text-[1.05rem] font-medium rounded-lg transition-colors relative ${
+                  className={`px-3 py-1.5 text-[1rem] font-medium rounded-lg transition-colors relative ${
                     isActive
                       ? "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300"
                       : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100"
