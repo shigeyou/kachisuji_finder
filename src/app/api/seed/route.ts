@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import fs from "fs";
 import path from "path";
@@ -13,14 +13,25 @@ interface SeedDocument {
 // GET: シードデータの状態確認
 export async function GET() {
   try {
-    const ragCount = await prisma.rAGDocument.count();
-    const seedFilePath = path.join(process.cwd(), "prisma/seed-data/rag-documents.json");
-    const seedFileExists = fs.existsSync(seedFilePath);
+    const [ragCount, explorationCount, topStrategyCount, strategyDecisionCount] = await Promise.all([
+      prisma.rAGDocument.count(),
+      prisma.exploration.count(),
+      prisma.topStrategy.count(),
+      prisma.strategyDecision.count(),
+    ]);
+
+    const ragSeedPath = path.join(process.cwd(), "prisma/seed-data/rag-documents.json");
+    const explorationSeedPath = path.join(process.cwd(), "prisma/seed-data/exploration-data.json");
 
     return NextResponse.json({
       ragDocumentCount: ragCount,
-      seedFileExists,
-      needsSeeding: ragCount === 0 && seedFileExists,
+      explorationCount,
+      topStrategyCount,
+      strategyDecisionCount,
+      ragSeedFileExists: fs.existsSync(ragSeedPath),
+      explorationSeedFileExists: fs.existsSync(explorationSeedPath),
+      needsRagSeeding: ragCount === 0,
+      needsExplorationSeeding: explorationCount === 0,
     });
   } catch (error) {
     console.error("Seed status error:", error);
@@ -32,61 +43,227 @@ export async function GET() {
 }
 
 // POST: シードデータを読み込み
-export async function POST() {
+// クエリパラメータ: type=rag|exploration|all, force=true で強制シード
+export async function POST(request: NextRequest) {
   try {
-    // 既存のRAGドキュメント数を確認
-    const existingCount = await prisma.rAGDocument.count();
-    if (existingCount > 0) {
-      return NextResponse.json({
-        success: true,
-        message: "RAGドキュメントが既に存在するため、シードをスキップしました",
-        existingCount,
-        seeded: 0,
-      });
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get("type") || "all";
+    const force = searchParams.get("force") === "true";
+
+    const results: Record<string, unknown> = {};
+
+    // RAGドキュメントのシード
+    if (type === "rag" || type === "all") {
+      const existingRagCount = await prisma.rAGDocument.count();
+      if (force || existingRagCount === 0) {
+        const seedFilePath = path.join(process.cwd(), "prisma/seed-data/rag-documents.json");
+
+        if (fs.existsSync(seedFilePath)) {
+          if (force && existingRagCount > 0) {
+            await prisma.rAGDocument.deleteMany();
+          }
+
+          const seedData = JSON.parse(fs.readFileSync(seedFilePath, "utf-8"));
+          const documents: SeedDocument[] = seedData.documents || [];
+
+          for (const doc of documents) {
+            await prisma.rAGDocument.create({
+              data: {
+                filename: doc.filename,
+                fileType: doc.fileType,
+                content: doc.content,
+                metadata: doc.metadata,
+              },
+            });
+          }
+          results.rag = { seeded: documents.length };
+        } else {
+          results.rag = { error: "シードファイルが見つかりません" };
+        }
+      } else {
+        results.rag = { skipped: true, existingCount: existingRagCount };
+      }
     }
 
-    // シードファイルを読み込み
-    const seedFilePath = path.join(process.cwd(), "prisma/seed-data/rag-documents.json");
+    // 探索データのシード
+    if (type === "exploration" || type === "all") {
+      const existingExplorationCount = await prisma.exploration.count();
+      if (force || existingExplorationCount === 0) {
+        const seedFilePath = path.join(process.cwd(), "prisma/seed-data/exploration-data.json");
 
-    if (!fs.existsSync(seedFilePath)) {
-      return NextResponse.json({
-        success: false,
-        message: "シードファイルが見つかりません",
-        path: seedFilePath,
-      });
+        if (fs.existsSync(seedFilePath)) {
+          if (force) {
+            // 強制シードの場合は既存データを削除
+            await prisma.strategyDecision.deleteMany();
+            await prisma.topStrategy.deleteMany();
+            await prisma.exploration.deleteMany();
+            await prisma.learningMemory.deleteMany();
+            await prisma.companyProfile.deleteMany();
+            await prisma.defaultSwot.deleteMany();
+            await prisma.coreAsset.deleteMany();
+            await prisma.coreService.deleteMany();
+          }
+
+          const seedData = JSON.parse(fs.readFileSync(seedFilePath, "utf-8"));
+          const counts: Record<string, number> = {};
+
+          // CompanyProfile
+          if (seedData.companyProfile) {
+            await prisma.companyProfile.create({
+              data: {
+                id: seedData.companyProfile.id || "default",
+                name: seedData.companyProfile.name,
+                shortName: seedData.companyProfile.shortName,
+                description: seedData.companyProfile.description,
+                background: seedData.companyProfile.background,
+                techStack: seedData.companyProfile.techStack,
+                parentCompany: seedData.companyProfile.parentCompany,
+                parentRelation: seedData.companyProfile.parentRelation,
+                industry: seedData.companyProfile.industry,
+                additionalContext: seedData.companyProfile.additionalContext,
+              },
+            });
+            counts.companyProfile = 1;
+          }
+
+          // DefaultSwot
+          if (seedData.defaultSwot) {
+            await prisma.defaultSwot.create({
+              data: {
+                id: seedData.defaultSwot.id || "default",
+                strengths: seedData.defaultSwot.strengths,
+                weaknesses: seedData.defaultSwot.weaknesses,
+                opportunities: seedData.defaultSwot.opportunities,
+                threats: seedData.defaultSwot.threats,
+                summary: seedData.defaultSwot.summary,
+                updatedBy: seedData.defaultSwot.updatedBy,
+              },
+            });
+            counts.defaultSwot = 1;
+          }
+
+          // CoreAssets
+          if (seedData.coreAssets?.length > 0) {
+            for (const asset of seedData.coreAssets) {
+              await prisma.coreAsset.create({
+                data: {
+                  name: asset.name,
+                  type: asset.type,
+                  description: asset.description,
+                },
+              });
+            }
+            counts.coreAssets = seedData.coreAssets.length;
+          }
+
+          // CoreServices
+          if (seedData.coreServices?.length > 0) {
+            for (const service of seedData.coreServices) {
+              await prisma.coreService.create({
+                data: {
+                  name: service.name,
+                  category: service.category,
+                  description: service.description,
+                  url: service.url,
+                },
+              });
+            }
+            counts.coreServices = seedData.coreServices.length;
+          }
+
+          // Explorations
+          if (seedData.explorations?.length > 0) {
+            for (const exploration of seedData.explorations) {
+              await prisma.exploration.create({
+                data: {
+                  id: exploration.id,
+                  question: exploration.question,
+                  context: exploration.context,
+                  constraints: exploration.constraints,
+                  status: exploration.status,
+                  result: exploration.result,
+                  error: exploration.error,
+                },
+              });
+            }
+            counts.explorations = seedData.explorations.length;
+          }
+
+          // TopStrategies
+          if (seedData.topStrategies?.length > 0) {
+            for (const strategy of seedData.topStrategies) {
+              await prisma.topStrategy.create({
+                data: {
+                  id: strategy.id,
+                  explorationId: strategy.explorationId,
+                  name: strategy.name,
+                  reason: strategy.reason,
+                  howToObtain: strategy.howToObtain,
+                  totalScore: strategy.totalScore,
+                  scores: strategy.scores,
+                  question: strategy.question,
+                  judgment: strategy.judgment,
+                  learningExtracted: strategy.learningExtracted,
+                },
+              });
+            }
+            counts.topStrategies = seedData.topStrategies.length;
+          }
+
+          // StrategyDecisions
+          if (seedData.strategyDecisions?.length > 0) {
+            for (const decision of seedData.strategyDecisions) {
+              await prisma.strategyDecision.create({
+                data: {
+                  id: decision.id,
+                  explorationId: decision.explorationId,
+                  strategyName: decision.strategyName,
+                  decision: decision.decision,
+                  reason: decision.reason,
+                  feasibilityNote: decision.feasibilityNote,
+                },
+              });
+            }
+            counts.strategyDecisions = seedData.strategyDecisions.length;
+          }
+
+          // LearningMemories
+          if (seedData.learningMemories?.length > 0) {
+            for (const memory of seedData.learningMemories) {
+              await prisma.learningMemory.create({
+                data: {
+                  id: memory.id,
+                  type: memory.type,
+                  category: memory.category,
+                  pattern: memory.pattern,
+                  examples: memory.examples,
+                  evidence: memory.evidence,
+                  confidence: memory.confidence,
+                  validationCount: memory.validationCount,
+                  successRate: memory.successRate,
+                  usedCount: memory.usedCount,
+                  lastUsedAt: memory.lastUsedAt ? new Date(memory.lastUsedAt) : null,
+                  isActive: memory.isActive,
+                },
+              });
+            }
+            counts.learningMemories = seedData.learningMemories.length;
+          }
+
+          results.exploration = { seeded: counts };
+        } else {
+          results.exploration = { error: "シードファイルが見つかりません" };
+        }
+      } else {
+        results.exploration = { skipped: true, existingCount: existingExplorationCount };
+      }
     }
-
-    const seedData = JSON.parse(fs.readFileSync(seedFilePath, "utf-8"));
-    const documents: SeedDocument[] = seedData.documents || [];
-
-    if (documents.length === 0) {
-      return NextResponse.json({
-        success: false,
-        message: "シードファイルにドキュメントがありません",
-      });
-    }
-
-    // ドキュメントを挿入
-    const results = [];
-    for (const doc of documents) {
-      const created = await prisma.rAGDocument.create({
-        data: {
-          filename: doc.filename,
-          fileType: doc.fileType,
-          content: doc.content,
-          metadata: doc.metadata,
-        },
-      });
-      results.push({ id: created.id, filename: created.filename });
-    }
-
-    console.log(`Seeded ${results.length} RAG documents`);
 
     return NextResponse.json({
       success: true,
-      message: `${results.length}件のRAGドキュメントをシードしました`,
-      seeded: results.length,
-      documents: results,
+      force,
+      type,
+      results,
     });
   } catch (error) {
     console.error("Seed error:", error);
