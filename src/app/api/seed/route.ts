@@ -273,3 +273,37 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// DELETE: 探索データのみクリア（会社情報やRAGは残す）
+export async function DELETE() {
+  try {
+    // 探索関連データのみ削除
+    const [
+      deletedDecisions,
+      deletedStrategies,
+      deletedExplorations,
+      deletedMemories,
+    ] = await Promise.all([
+      prisma.strategyDecision.deleteMany(),
+      prisma.topStrategy.deleteMany(),
+      prisma.exploration.deleteMany(),
+      prisma.learningMemory.deleteMany(),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      deleted: {
+        strategyDecisions: deletedDecisions.count,
+        topStrategies: deletedStrategies.count,
+        explorations: deletedExplorations.count,
+        learningMemories: deletedMemories.count,
+      },
+    });
+  } catch (error) {
+    console.error("Clear exploration data error:", error);
+    return NextResponse.json(
+      { error: `データ削除に失敗しました: ${error instanceof Error ? error.message : "Unknown error"}` },
+      { status: 500 }
+    );
+  }
+}

@@ -7,6 +7,8 @@ export function IntroTab() {
   const { setActiveTab } = useApp();
   const [seedStatus, setSeedStatus] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [clearStatus, setClearStatus] = useState<string | null>(null);
+  const [isClearing, setIsClearing] = useState(false);
 
   const handleForceSeed = async () => {
     if (!confirm("強制シードを実行すると、現在の探索データが初期データに置き換わります。続行しますか？")) {
@@ -27,6 +29,28 @@ export function IntroTab() {
       setSeedStatus(`エラー: ${e instanceof Error ? e.message : "通信エラー"}`);
     } finally {
       setIsSeeding(false);
+    }
+  };
+
+  const handleClearExplorations = async () => {
+    if (!confirm("探索データをすべて削除します。会社情報やRAGドキュメントは残ります。続行しますか？")) {
+      return;
+    }
+    setIsClearing(true);
+    setClearStatus("削除中...");
+    try {
+      const res = await fetch("/api/seed", { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        const d = data.deleted || {};
+        setClearStatus(`削除完了: Exploration ${d.explorations || 0}件, TopStrategy ${d.topStrategies || 0}件, StrategyDecision ${d.strategyDecisions || 0}件, LearningMemory ${d.learningMemories || 0}件`);
+      } else {
+        setClearStatus(`エラー: ${data.error || "不明なエラー"}`);
+      }
+    } catch (e) {
+      setClearStatus(`エラー: ${e instanceof Error ? e.message : "通信エラー"}`);
+    } finally {
+      setIsClearing(false);
     }
   };
 
@@ -197,23 +221,47 @@ export function IntroTab() {
           <span className="w-1 h-6 bg-slate-500 rounded"></span>
           管理者向け
         </h2>
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-5">
-          <p className="text-slate-600 dark:text-slate-400 text-sm mb-4">
-            デプロイ後にデータが不足している場合、以下のボタンで初期データを強制的に読み込みます。
-          </p>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleForceSeed}
-              disabled={isSeeding}
-              className="px-4 py-2 bg-slate-600 hover:bg-slate-700 disabled:bg-slate-400 text-white font-medium rounded-lg transition-colors text-sm"
-            >
-              {isSeeding ? "シード中..." : "強制シード実行"}
-            </button>
-            {seedStatus && (
-              <span className={`text-sm ${seedStatus.startsWith("エラー") ? "text-red-600" : "text-green-600"}`}>
-                {seedStatus}
-              </span>
-            )}
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-5 space-y-4">
+          {/* 探索データクリア */}
+          <div>
+            <p className="text-slate-600 dark:text-slate-400 text-sm mb-2">
+              探索データのみ削除します（会社情報・RAGは残ります）。
+            </p>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleClearExplorations}
+                disabled={isClearing}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-medium rounded-lg transition-colors text-sm"
+              >
+                {isClearing ? "削除中..." : "探索データをクリア"}
+              </button>
+              {clearStatus && (
+                <span className={`text-sm ${clearStatus.startsWith("エラー") ? "text-red-600" : "text-green-600"}`}>
+                  {clearStatus}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* 強制シード */}
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+            <p className="text-slate-600 dark:text-slate-400 text-sm mb-2">
+              デプロイ後にデータが不足している場合、初期データを強制的に読み込みます。
+            </p>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleForceSeed}
+                disabled={isSeeding}
+                className="px-4 py-2 bg-slate-600 hover:bg-slate-700 disabled:bg-slate-400 text-white font-medium rounded-lg transition-colors text-sm"
+              >
+                {isSeeding ? "シード中..." : "強制シード実行"}
+              </button>
+              {seedStatus && (
+                <span className={`text-sm ${seedStatus.startsWith("エラー") ? "text-red-600" : "text-green-600"}`}>
+                  {seedStatus}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </section>
