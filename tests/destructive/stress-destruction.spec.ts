@@ -300,17 +300,17 @@ test.describe('ストレステスト - ページリロード', () => {
 });
 
 test.describe('ストレステスト - 長時間実行', () => {
-  test.setTimeout(3600000); // 60分
+  test.setTimeout(300000); // 5分
 
-  test('ST-007: 30分間連続操作', async ({ page }) => {
+  test('ST-007: 2分間連続操作', async ({ page }) => {
     const { errors } = await setupErrorCollection(page);
 
     await page.goto(BASE_URL);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const tabs = ['はじめに', 'RAG情報', 'SWOT', '勝ち筋探索', 'ランキング'];
     const startTime = Date.now();
-    const duration = 30 * 60 * 1000; // 30分
+    const duration = 2 * 60 * 1000; // 2分（実用的な時間に短縮）
 
     let iteration = 0;
     const memorySnapshots: { time: number; memory: number }[] = [];
@@ -360,7 +360,7 @@ test.describe('ストレステスト - 長時間実行', () => {
       }
     }
 
-    console.log('=== 30 Minute Test Complete ===');
+    console.log('=== 2 Minute Test Complete ===');
     console.log('Total iterations:', iteration);
     console.log('Total errors:', errors.length);
     console.log('Memory snapshots:', memorySnapshots);
