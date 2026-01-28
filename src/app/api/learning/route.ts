@@ -286,7 +286,7 @@ export async function GET(request: NextRequest) {
     if (activeOnly) where.isActive = true;
 
     step = "findMany-learningMemory";
-    let patterns;
+    let patterns: Awaited<ReturnType<typeof prisma.learningMemory.findMany>> = [];
     try {
       patterns = await prisma.learningMemory.findMany({
         where,
