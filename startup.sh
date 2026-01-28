@@ -13,7 +13,14 @@ fi
 export DATABASE_URL="file:/home/data/kachisuji.db"
 
 # Sync database schema (ignore errors)
-npx prisma db push --schema=prisma/schema.prisma --skip-generate --accept-data-loss 2>&1 || echo "Schema sync skipped"
+# Use node_modules directly to avoid permission issues with npx
+if [ -f node_modules/prisma/build/index.js ]; then
+    node node_modules/prisma/build/index.js db push --schema=prisma/schema.prisma --skip-generate --accept-data-loss 2>&1 || echo "Schema sync skipped"
+elif [ -f node_modules/.bin/prisma ]; then
+    node_modules/.bin/prisma db push --schema=prisma/schema.prisma --skip-generate --accept-data-loss 2>&1 || echo "Schema sync skipped"
+else
+    echo "Prisma not found, schema sync skipped"
+fi
 
 # Start the application
 node server.js
