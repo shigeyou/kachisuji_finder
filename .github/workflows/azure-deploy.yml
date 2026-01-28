@@ -62,9 +62,6 @@ jobs:
           # Copy database file (used as seed for first deploy)
           mkdir -p .next/standalone/data
           cp prisma/dev.db .next/standalone/data/dev.db
-          # Copy startup script
-          cp scripts/azure-start.sh .next/standalone/azure-start.sh
-          chmod +x .next/standalone/azure-start.sh
           # Create package.json for Azure App Service
           echo '{"name":"kachisuji-finder","version":"1.0.0","scripts":{"start":"node server.js"}}' > .next/standalone/package.json
 
@@ -83,7 +80,7 @@ jobs:
           az webapp config set \
             --resource-group rg-ocreader-japaneast \
             --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --startup-file "bash azure-start.sh"
+            --startup-file "mkdir -p /home/data && [ ! -f /home/data/kachisuji.db ] && cp data/dev.db /home/data/kachisuji.db; node server.js"
           az webapp config appsettings set \
             --resource-group rg-ocreader-japaneast \
             --name ${{ env.AZURE_WEBAPP_NAME }} \
