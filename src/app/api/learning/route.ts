@@ -71,13 +71,28 @@ ${rejectedStrategies.map((s, i) => `${i + 1}. ${s.name}
     response_format: { type: "json_object" },
   });
 
-  const content = response.choices[0]?.message?.content;
-  if (!content) return [];
+  const choice = response.choices[0];
+  const content = choice?.message?.content;
+  console.log(`[Learning] OpenAI response: finish_reason=${choice?.finish_reason}, content_length=${content?.length ?? "null"}`);
+
+  if (!content) {
+    console.error("[Learning] OpenAI returned empty content. Full response:", JSON.stringify({
+      id: response.id,
+      model: response.model,
+      finish_reason: choice?.finish_reason,
+      usage: response.usage,
+    }));
+    return [];
+  }
 
   try {
     const parsed = JSON.parse(content);
+    if (!parsed.patterns || parsed.patterns.length === 0) {
+      console.warn("[Learning] OpenAI returned JSON but no patterns:", content.substring(0, 500));
+    }
     return parsed.patterns || [];
-  } catch {
+  } catch (e) {
+    console.error("[Learning] Failed to parse OpenAI response as JSON:", String(e), "content:", content.substring(0, 500));
     return [];
   }
 }
@@ -194,8 +209,9 @@ export async function POST(request: NextRequest) {
     const patterns = await extractPatternsWithAI(adoptedStrategies, rejectedStrategies);
 
     if (patterns.length === 0) {
+      console.error("[Learning] extractPatternsWithAI returned 0 patterns. adopted:", adoptedStrategies.length, "rejected:", rejectedStrategies.length);
       return NextResponse.json(
-        { error: "パターンを抽出できませんでした" },
+        { error: "パターンを抽出できませんでした（OpenAIレスポンスが空でした。Azureログを確認してください）" },
         { status: 500 }
       );
     }
@@ -260,8 +276,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Learning extract error:", error);
+    const detail = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: "パターン抽出に失敗しました" },
+      { error: `パターン抽出に失敗しました: ${detail}` },
       { status: 500 }
     );
   }
