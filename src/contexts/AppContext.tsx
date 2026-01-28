@@ -170,6 +170,14 @@ interface AppContextType {
   swotLoading: boolean;
   fetchSwot: () => Promise<void>;
 
+  // 探索入力（タブ切替時も保持）
+  exploreQuestion: string;
+  setExploreQuestion: (q: string) => void;
+  exploreAdditionalContext: string;
+  setExploreAdditionalContext: (c: string) => void;
+  exploreSelectedPresets: Set<number>;
+  setExploreSelectedPresets: (p: Set<number>) => void;
+
   // コアサービス
   services: CoreService[];
   setServices: (services: CoreService[]) => void;
@@ -239,6 +247,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // SWOT
   const [swot, setSwot] = useState<SwotData | null>(null);
   const [swotLoading, setSwotLoading] = useState(true);
+
+  // 探索入力（タブ切替時も保持）
+  const [exploreQuestion, setExploreQuestion] = useState("");
+  const [exploreAdditionalContext, setExploreAdditionalContext] = useState("");
+  const [exploreSelectedPresets, setExploreSelectedPresets] = useState<Set<number>>(new Set());
 
   // コアサービス
   const [services, setServices] = useState<CoreService[]>([]);
@@ -948,6 +961,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSwot,
     swotLoading,
     fetchSwot,
+    exploreQuestion,
+    setExploreQuestion,
+    exploreAdditionalContext,
+    setExploreAdditionalContext,
+    exploreSelectedPresets,
+    setExploreSelectedPresets,
     services,
     setServices,
     servicesLoading,

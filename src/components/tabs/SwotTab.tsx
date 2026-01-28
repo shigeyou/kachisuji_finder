@@ -1,26 +1,64 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 
 export function SwotTab() {
   const { swot, setSwot, swotLoading, fetchSwot } = useApp();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const isAnalyzingRef = useRef(false); // 連打防止用の同期ガード
   const [swotProgress, setSwotProgress] = useState(0);
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [showAdditionalInput, setShowAdditionalInput] = useState(false);
 
-  // 100%までアニメーションさせる関数
-  const animateToComplete = (
+  // クリーンアップ用のRef
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isMountedRef = useRef(true);
+  const lastClickTimeRef = useRef<number>(0); // クールダウン用
+
+  // コンポーネントのアンマウント時にクリーンアップ
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      // すべてのタイマー・アニメーション・リクエストをキャンセル
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []);
+
+  // 100%までアニメーションさせる関数（安全なバージョン）
+  const animateToComplete = useCallback((
     currentProgress: number,
     onComplete: () => void,
     duration: number = 1500
   ) => {
+    // 既存のアニメーションをキャンセル
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
     const startProgress = currentProgress;
     const startTime = Date.now();
 
     const animate = () => {
+      // アンマウント済みなら何もしない
+      if (!isMountedRef.current) return;
+
       const elapsed = Date.now() - startTime;
       const t = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - t, 3);
@@ -29,17 +67,65 @@ export function SwotTab() {
       setSwotProgress(Math.min(newProgress, 100));
 
       if (t < 1) {
-        requestAnimationFrame(animate);
+        animationFrameRef.current = requestAnimationFrame(animate);
       } else {
         setSwotProgress(100);
-        setTimeout(onComplete, 300);
+        animationFrameRef.current = null;
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            onComplete();
+          }
+        }, 300);
       }
     };
 
-    requestAnimationFrame(animate);
-  };
+    animationFrameRef.current = requestAnimationFrame(animate);
+  }, []);
 
-  const runSwotAnalysis = async () => {
+  // クリーンアップヘルパー
+  const cleanup = useCallback(() => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, []);
+
+  const runSwotAnalysis = useCallback(async () => {
+    // 連打防止: 複数のガードを組み合わせる
+    // 1. State check
+    if (isAnalyzing) {
+      console.log("SWOT analysis already in progress (state), ignoring click");
+      return;
+    }
+
+    // 2. Ref check (synchronous)
+    if (isAnalyzingRef.current) {
+      console.log("SWOT analysis already in progress (ref), ignoring click");
+      return;
+    }
+
+    // 3. クールダウン: 最後のクリックから3秒以内は無視
+    const now = Date.now();
+    if (now - lastClickTimeRef.current < 3000) {
+      console.log("SWOT analysis cooldown, ignoring click");
+      return;
+    }
+
+    // 即座にガードをセット（これ以降のクリックをブロック）
+    isAnalyzingRef.current = true;
+    lastClickTimeRef.current = now;
+
+    // 既存の処理をすべてキャンセル
+    cleanup();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     setIsAnalyzing(true);
     setSwotProgress(0);
     const startTime = Date.now();
@@ -70,7 +156,8 @@ export function SwotTab() {
       return Math.min(progress, 99);
     };
 
-    const progressInterval = setInterval(() => {
+    progressIntervalRef.current = setInterval(() => {
+      if (!isMountedRef.current) return;
       const newProgress = calculateProgress();
       maxProgress = Math.max(maxProgress, newProgress);
       setSwotProgress(maxProgress);
@@ -84,30 +171,49 @@ export function SwotTab() {
           regenerate: true,
           additionalInfo: additionalInfo.trim() || undefined,
         }),
+        signal: abortControllerRef.current.signal,
       });
-      clearInterval(progressInterval);
+
+      // アンマウント済みなら何もしない
+      if (!isMountedRef.current) return;
+
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
 
       const data = await res.json();
       if (data.success) {
         // 100%までアニメーションしてから完了
         animateToComplete(maxProgress, () => {
+          if (!isMountedRef.current) return;
           setSwot(data.swot);
           setIsAnalyzing(false);
           setSwotProgress(0);
+          isAnalyzingRef.current = false; // ガード解除
         });
       } else {
         setIsAnalyzing(false);
         setSwotProgress(0);
+        isAnalyzingRef.current = false; // ガード解除
         alert("SWOT分析に失敗しました: " + (data.error || "不明なエラー"));
       }
     } catch (error) {
+      // AbortErrorは正常なキャンセルなので無視
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log("SWOT analysis was cancelled");
+        return;
+      }
       console.error("SWOT analysis failed:", error);
-      clearInterval(progressInterval);
-      setIsAnalyzing(false);
-      setSwotProgress(0);
-      alert("SWOT分析に失敗しました");
+      cleanup();
+      if (isMountedRef.current) {
+        setIsAnalyzing(false);
+        setSwotProgress(0);
+        isAnalyzingRef.current = false; // ガード解除
+        alert("SWOT分析に失敗しました");
+      }
     }
-  };
+  }, [isAnalyzing, additionalInfo, animateToComplete, cleanup, setSwot]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("ja-JP", {
@@ -140,7 +246,7 @@ export function SwotTab() {
             onClick={runSwotAnalysis}
             disabled={isAnalyzing}
             size="sm"
-            className="bg-green-600 hover:bg-green-700"
+            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isAnalyzing ? "分析中..." : "再分析"}
           </Button>

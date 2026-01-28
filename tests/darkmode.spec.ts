@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'http://localhost:3006';
 
 test.describe('ダークモードテスト', () => {
   test('テーマ切り替えボタンが表示される', async ({ page }) => {

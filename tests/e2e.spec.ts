@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'http://localhost:3006';
 
 // ===================================
 // 基本的なナビゲーションテスト
@@ -10,234 +10,166 @@ test.describe('基本ナビゲーション', () => {
   test('1. ホームページが正常に表示される', async ({ page }) => {
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('h1')).toContainText('勝ち筋ファインダー');
-    // ナビゲーションリンクが存在することを確認
-    await expect(page.locator('nav a:has-text("戦略一覧")')).toBeVisible();
-    await expect(page.locator('nav a:has-text("インサイト")')).toBeVisible();
-    await expect(page.locator('nav a:has-text("設定")')).toBeVisible();
+    await expect(page.locator('header').locator('text=勝ち筋ファインダー')).toBeVisible({ timeout: 10000 });
+    // タブが存在することを確認
+    await expect(page.locator('button:has-text("SWOT")')).toBeVisible();
+    await expect(page.locator('button:has-text("勝ち筋探索")')).toBeVisible();
+    await expect(page.locator('button:has-text("ランキング")')).toBeVisible();
   });
 
-  test('2. 設定ページへ遷移できる', async ({ page }) => {
+  test('2. SWOTタブへ切り替えできる', async ({ page }) => {
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
-    await page.click('nav a:has-text("設定")');
-    await expect(page).toHaveURL(/\/settings/);
-    await expect(page.locator('h1')).toContainText('設定');
+    await page.click('button:has-text("SWOT")');
+    await expect(page.locator('h1:has-text("SWOT分析")')).toBeVisible({ timeout: 10000 });
   });
 
-  test('3. 戦略一覧ページへ遷移できる', async ({ page }) => {
+  test('3. ランキングタブへ切り替えできる', async ({ page }) => {
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
-    await page.click('nav a:has-text("戦略一覧")');
-    await expect(page).toHaveURL(/\/strategies/);
-    await expect(page.locator('h1')).toContainText('戦略一覧');
+    await page.click('button:has-text("ランキング")');
+    await expect(page.locator('h1:has-text("ランキング")')).toBeVisible({ timeout: 10000 });
   });
 
-  test('4. インサイトページへ遷移できる', async ({ page }) => {
+  test('4. インサイトタブへ切り替えできる', async ({ page }) => {
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
-    await page.click('nav a:has-text("インサイト")');
-    await expect(page).toHaveURL(/\/insights/);
-    await expect(page.locator('h1')).toContainText('インサイト');
+    await page.click('button:has-text("インサイト")');
+    await expect(page.locator('h1:has-text("インサイト")')).toBeVisible({ timeout: 10000 });
   });
 
-  test('5. ページ間を自由に行き来できる', async ({ page }) => {
+  test('5. タブ間を自由に行き来できる', async ({ page }) => {
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
-    // ホーム → 戦略一覧
-    await page.click('nav a:has-text("戦略一覧")');
-    await expect(page).toHaveURL(/\/strategies/);
+    // 勝ち筋探索 → SWOT
+    await page.click('button:has-text("勝ち筋探索")');
+    await expect(page.locator('h1:has-text("勝ち筋探索")')).toBeVisible({ timeout: 10000 });
 
-    // 戦略一覧 → ダッシュボード
-    await page.click('text=← ダッシュボード');
-    await expect(page).toHaveURL(BASE_URL + '/');
+    await page.click('button:has-text("SWOT")');
+    await expect(page.locator('h1:has-text("SWOT分析")')).toBeVisible({ timeout: 10000 });
 
-    // ホーム → 設定
-    await page.click('nav a:has-text("設定")');
-    await expect(page).toHaveURL(/\/settings/);
+    // SWOT → ランキング
+    await page.click('button:has-text("ランキング")');
+    await expect(page.locator('h1:has-text("ランキング")')).toBeVisible({ timeout: 10000 });
 
-    // 設定 → ダッシュボード
-    await page.click('text=← ダッシュボード');
-    await expect(page).toHaveURL(BASE_URL + '/');
+    // ランキング → 探索履歴
+    await page.click('button:has-text("探索履歴")');
+    await expect(page.locator('h1:has-text("探索履歴")')).toBeVisible({ timeout: 10000 });
   });
 });
 
 // ===================================
-// ダッシュボード機能テスト
+// 勝ち筋探索機能テスト
 // ===================================
 
-test.describe('ダッシュボード機能', () => {
-  test('6. SWOT表示の詳細開閉', async ({ page }) => {
+test.describe('勝ち筋探索機能', () => {
+  test('6. 問い入力と探索ボタン', async ({ page }) => {
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
-    // 「詳細を見る」ボタンがあれば展開
-    const detailBtn = page.locator('button:has-text("詳細を見る")');
-    if (await detailBtn.isVisible()) {
-      await detailBtn.click();
-      await expect(page.locator('text=強み (Strengths)')).toBeVisible();
+    await page.click('button:has-text("勝ち筋探索")');
+    await expect(page.locator('text=問いを立てる')).toBeVisible({ timeout: 10000 });
 
-      // 閉じる
-      const closeBtn = page.locator('button:has-text("閉じる")');
-      await closeBtn.click();
-    }
-  });
-
-  test('7. 問い入力と探索ボタン', async ({ page }) => {
-    await page.goto(BASE_URL);
-    await page.waitForLoadState('networkidle');
-
-    // 探索ボタンは初期状態でdisabled
-    const exploreBtn = page.locator('button:has-text("探索する")');
+    // 探索ボタンは初期状態でdisabled（exact matchで特定）
+    const exploreBtn = page.getByRole('button', { name: '探索する', exact: true });
     await expect(exploreBtn).toBeDisabled();
 
     // 問いを入力
-    await page.locator('textarea').fill('テスト問い');
+    await page.locator('textarea').first().fill('テスト問い');
 
     // 探索ボタンが有効になる
     await expect(exploreBtn).toBeEnabled();
   });
 
-  test('8. 活動サマリーが表示される', async ({ page }) => {
+  test('7. プリセット質問が表示される', async ({ page }) => {
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
-    // 活動サマリーセクションを確認
-    await expect(page.locator('text=あなたの活動')).toBeVisible();
-    await expect(page.locator('text=探索回数')).toBeVisible();
-    await expect(page.locator('text=採用戦略')).toBeVisible();
-    await expect(page.locator('text=採用率')).toBeVisible();
+    await page.click('button:has-text("勝ち筋探索")');
+    await expect(page.locator('text=プリセット質問')).toBeVisible({ timeout: 10000 });
   });
 });
 
 // ===================================
-// 設定ページテスト
+// SWOTタブテスト
 // ===================================
 
-test.describe('設定ページ', () => {
-  test('9. タブ切り替え - コア情報', async ({ page }) => {
-    await page.goto(BASE_URL + '/settings');
+test.describe('SWOTタブ', () => {
+  test('8. 再分析ボタンが表示される', async ({ page }) => {
+    await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('text=コア情報（サービス・資産）')).toBeVisible();
+    await page.click('button:has-text("SWOT")');
+    await expect(page.locator('button:has-text("再分析")')).toBeVisible({ timeout: 10000 });
   });
+});
 
-  test('10. タブ切り替え - スコア設定', async ({ page }) => {
-    await page.goto(BASE_URL + '/settings');
+// ===================================
+// スコア設定タブテスト
+// ===================================
+
+test.describe('スコア設定タブ', () => {
+  test('9. スコア設定が表示される', async ({ page }) => {
+    await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
     await page.click('button:has-text("スコア設定")');
-    await expect(page.locator('text=スコア重み付け')).toBeVisible();
-    await expect(page.locator('text=収益ポテンシャル')).toBeVisible();
+    await expect(page.locator('h1:has-text("スコア設定")')).toBeVisible({ timeout: 10000 });
   });
 
-  test('11. タブ切り替え - 外観', async ({ page }) => {
-    await page.goto(BASE_URL + '/settings');
+  test('10. スコア項目が表示される', async ({ page }) => {
+    await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
-    await page.click('button:has-text("外観")');
-    await expect(page.locator('text=ダークモード')).toBeVisible();
-  });
-
-  test('12. サービス追加フォーム表示', async ({ page }) => {
-    await page.goto(BASE_URL + '/settings');
-    await page.waitForLoadState('networkidle');
-
-    await page.click('button:has-text("+ 追加")');
-    await expect(page.locator('text=サービスを追加')).toBeVisible();
-  });
-
-  test('13. サービス追加キャンセル', async ({ page }) => {
-    await page.goto(BASE_URL + '/settings');
-    await page.waitForLoadState('networkidle');
-
-    await page.click('button:has-text("+ 追加")');
-    await expect(page.locator('text=サービスを追加')).toBeVisible();
-
-    await page.click('button:has-text("キャンセル")');
-    // フォームが閉じることを確認（サービスを追加のテキストが消える）
-    await expect(page.locator('text=サービスを追加')).not.toBeVisible();
-  });
-
-  test('14. CSV出力ボタンが存在する', async ({ page }) => {
-    await page.goto(BASE_URL + '/settings');
-    await page.waitForLoadState('networkidle');
-
-    await expect(page.locator('button:has-text("CSV出力")')).toBeVisible();
+    await page.click('button:has-text("スコア設定")');
+    await expect(page.locator('h1:has-text("スコア設定")')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=収益ポテンシャル').first()).toBeVisible({ timeout: 10000 });
   });
 });
 
 // ===================================
-// 戦略一覧ページテスト
+// ランキングタブテスト
 // ===================================
 
-test.describe('戦略一覧ページ', () => {
-  test('15. タブ切り替え - 採用した戦略', async ({ page }) => {
-    await page.goto(BASE_URL + '/strategies');
-    await page.waitForLoadState('networkidle');
-
-    await expect(page.locator('button:has-text("採用した戦略")')).toBeVisible();
-  });
-
-  test('16. タブ切り替え - ランキング', async ({ page }) => {
-    await page.goto(BASE_URL + '/strategies');
+test.describe('ランキングタブ', () => {
+  test('11. ランキングが表示される', async ({ page }) => {
+    await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
     await page.click('button:has-text("ランキング")');
-    await expect(page.locator('button:has-text("ランキング")')).toHaveClass(/border-blue-600/);
-  });
-
-  test('17. タブ切り替え - 進化生成', async ({ page }) => {
-    await page.goto(BASE_URL + '/strategies');
-    await page.waitForLoadState('networkidle');
-
-    await page.click('button:has-text("進化生成")');
-    await expect(page.locator('text=進化生成を実行')).toBeVisible();
-  });
-
-  test('18. タブ切り替え - AI自動探索', async ({ page }) => {
-    await page.goto(BASE_URL + '/strategies');
-    await page.waitForLoadState('networkidle');
-
-    await page.click('button:has-text("AI自動探索")');
-    await expect(page.locator('text=自動探索を実行')).toBeVisible();
+    await expect(page.locator('h1:has-text("ランキング")')).toBeVisible({ timeout: 10000 });
   });
 });
 
 // ===================================
-// インサイトページテスト
+// インサイトタブテスト
 // ===================================
 
-test.describe('インサイトページ', () => {
-  test('19. タブ切り替え - 探索履歴', async ({ page }) => {
-    await page.goto(BASE_URL + '/insights');
+test.describe('インサイトタブ', () => {
+  test('12. メタ分析ボタンが表示される', async ({ page }) => {
+    await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('button:has-text("探索履歴")')).toBeVisible();
+    await page.click('button:has-text("インサイト")');
+    await expect(page.locator('h1:has-text("インサイト")')).toBeVisible({ timeout: 10000 });
+    // メタ分析サブタブに切り替え
+    await page.click('button:has-text("メタ分析"):not(:has-text("を実行"))');
+    await expect(page.getByRole('button', { name: 'メタ分析を実行' })).toBeVisible({ timeout: 10000 });
   });
+});
 
-  test('20. タブ切り替え - 学習パターン', async ({ page }) => {
-    await page.goto(BASE_URL + '/insights');
+// ===================================
+// 探索履歴タブテスト
+// ===================================
+
+test.describe('探索履歴タブ', () => {
+  test('13. 探索履歴が表示される', async ({ page }) => {
+    await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
-    await page.click('button:has-text("学習パターン")');
-    await expect(page.getByRole('button', { name: 'パターンを抽出' })).toBeVisible();
-  });
-
-  test('21. タブ切り替え - メタ分析', async ({ page }) => {
-    await page.goto(BASE_URL + '/insights');
-    await page.waitForLoadState('networkidle');
-
-    await page.click('button:has-text("メタ分析")');
-    await expect(page.locator('text=メタ分析を実行')).toBeVisible();
-  });
-
-  test('22. URLパラメータでタブ切り替え', async ({ page }) => {
-    await page.goto(BASE_URL + '/insights?tab=patterns');
-    await page.waitForLoadState('networkidle');
-
-    await expect(page.getByRole('button', { name: 'パターンを抽出' })).toBeVisible();
+    await page.click('button:has-text("探索履歴")');
+    await expect(page.locator('h1:has-text("探索履歴")')).toBeVisible({ timeout: 10000 });
   });
 });
 
@@ -246,47 +178,21 @@ test.describe('インサイトページ', () => {
 // ===================================
 
 test.describe('エクスポートAPI', () => {
-  test('23. CSVエクスポートAPIが正常に動作する', async ({ page }) => {
+  test('14. CSVエクスポートAPIが正常に動作する', async ({ page }) => {
     const response = await page.request.get(BASE_URL + '/api/export?type=services&format=csv');
     expect(response.status()).toBe(200);
     expect(response.headers()['content-type']).toContain('text/csv');
   });
 
-  test('24. JSONエクスポートAPIが正常に動作する', async ({ page }) => {
+  test('15. JSONエクスポートAPIが正常に動作する', async ({ page }) => {
     const response = await page.request.get(BASE_URL + '/api/export?type=services&format=json');
     expect(response.status()).toBe(200);
     expect(response.headers()['content-type']).toContain('application/json');
   });
 
-  test('25. 不正なエクスポートタイプでエラーが返る', async ({ page }) => {
+  test('16. 不正なエクスポートタイプでエラーが返る', async ({ page }) => {
     const response = await page.request.get(BASE_URL + '/api/export?type=invalid&format=csv');
     expect(response.status()).toBe(400);
-  });
-});
-
-// ===================================
-// エラーハンドリングテスト
-// ===================================
-
-test.describe('エラーハンドリング', () => {
-  test('26. 存在しないページにアクセスした時の動作', async ({ page }) => {
-    const response = await page.goto(BASE_URL + '/nonexistent');
-    expect(response?.status()).toBe(404);
-  });
-
-  test('27. 旧ルート /explore は404', async ({ page }) => {
-    const response = await page.goto(BASE_URL + '/explore');
-    expect(response?.status()).toBe(404);
-  });
-
-  test('28. 旧ルート /history は404', async ({ page }) => {
-    const response = await page.goto(BASE_URL + '/history');
-    expect(response?.status()).toBe(404);
-  });
-
-  test('29. 旧ルート /core は404', async ({ page }) => {
-    const response = await page.goto(BASE_URL + '/core');
-    expect(response?.status()).toBe(404);
   });
 });
 
@@ -295,28 +201,28 @@ test.describe('エラーハンドリング', () => {
 // ===================================
 
 test.describe('UIインタラクション', () => {
-  test('30. レスポンシブレイアウトのテスト（モバイル幅）', async ({ page }) => {
+  test('17. レスポンシブレイアウトのテスト（モバイル幅）', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('h1')).toContainText('勝ち筋ファインダー');
+    await expect(page.locator('header').locator('text=勝ち筋ファインダー')).toBeVisible({ timeout: 10000 });
   });
 
-  test('31. レスポンシブレイアウトのテスト（タブレット幅）', async ({ page }) => {
+  test('18. レスポンシブレイアウトのテスト（タブレット幅）', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('h1')).toContainText('勝ち筋ファインダー');
+    await expect(page.locator('header').locator('text=勝ち筋ファインダー')).toBeVisible({ timeout: 10000 });
   });
 
-  test('32. レスポンシブレイアウトのテスト（デスクトップ幅）', async ({ page }) => {
+  test('19. レスポンシブレイアウトのテスト（デスクトップ幅）', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('h1')).toContainText('勝ち筋ファインダー');
+    await expect(page.locator('header').locator('text=勝ち筋ファインダー')).toBeVisible({ timeout: 10000 });
   });
 });
 
@@ -325,18 +231,9 @@ test.describe('UIインタラクション', () => {
 // ===================================
 
 test.describe('パフォーマンス', () => {
-  test('33. ホームページのロード時間が5秒以内', async ({ page }) => {
+  test('20. ホームページのロード時間が5秒以内', async ({ page }) => {
     const startTime = Date.now();
     await page.goto(BASE_URL);
-    await page.waitForLoadState('domcontentloaded');
-    const loadTime = Date.now() - startTime;
-
-    expect(loadTime).toBeLessThan(5000);
-  });
-
-  test('34. 設定ページのロード時間が5秒以内', async ({ page }) => {
-    const startTime = Date.now();
-    await page.goto(BASE_URL + '/settings');
     await page.waitForLoadState('domcontentloaded');
     const loadTime = Date.now() - startTime;
 
@@ -349,15 +246,15 @@ test.describe('パフォーマンス', () => {
 // ===================================
 
 test.describe('テーマ切り替え', () => {
-  test('35. テーマ切り替えボタンが表示される', async ({ page }) => {
+  test('21. テーマ切り替えボタンが表示される', async ({ page }) => {
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
     const themeButton = page.locator('button[title*="モード"]');
-    await expect(themeButton).toBeVisible();
+    await expect(themeButton).toBeVisible({ timeout: 10000 });
   });
 
-  test('36. テーマ切り替えボタンをクリックするとdarkクラスが切り替わる', async ({ page }) => {
+  test('22. テーマ切り替えボタンをクリックするとdarkクラスが切り替わる', async ({ page }) => {
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 

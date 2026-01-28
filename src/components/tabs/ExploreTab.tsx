@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useApp, presetQuestions as defaultPresetQuestions } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 
@@ -18,11 +18,15 @@ export function ExploreTab() {
     explorationError,
     startExploration,
     clearExplorationResult,
+    // グローバルな入力状態（タブ切替時も保持）
+    exploreQuestion: question,
+    setExploreQuestion: setQuestion,
+    exploreAdditionalContext: additionalContext,
+    setExploreAdditionalContext: setAdditionalContext,
+    exploreSelectedPresets: selectedPresets,
+    setExploreSelectedPresets: setSelectedPresets,
   } = useApp();
 
-  const [question, setQuestion] = useState("");
-  const [additionalContext, setAdditionalContext] = useState("");
-  const [selectedPresets, setSelectedPresets] = useState<Set<number>>(new Set());
   const [expandedStrategy, setExpandedStrategy] = useState<number | null>(null);
 
   // 動的プリセット質問
@@ -114,13 +118,13 @@ export function ExploreTab() {
     await startExploration(question.trim(), fullContext);
   };
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     clearExplorationResult();
     setQuestion("");
     setAdditionalContext("");
     setSelectedPresets(new Set());
     setExpandedStrategy(null);
-  };
+  }, [clearExplorationResult, setQuestion, setAdditionalContext, setSelectedPresets]);
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col">
