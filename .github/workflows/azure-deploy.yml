@@ -95,6 +95,11 @@ jobs:
             --name ${{ env.AZURE_WEBAPP_NAME }} \
             --settings DATABASE_URL="file:/home/data/kachisuji.db" SCM_DO_BUILD_DURING_DEPLOYMENT="false"
 
+      - name: Wait for SCM to stabilize
+        run: |
+          echo "Waiting 60 seconds for SCM container to stabilize after config changes..."
+          sleep 60
+
       - name: Deploy to Azure Web App
         run: |
           az webapp deploy \
