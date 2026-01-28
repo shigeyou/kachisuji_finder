@@ -252,7 +252,10 @@ export async function exportSummaryPdf(data: SummaryData): Promise<void> {
       heightLeft -= pageHeight - margin * 2;
     }
 
-    pdf.save("strategic-summary.pdf");
+    // ファイル名: yyyymmdd_勝ち筋探索まとめ.pdf
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+    pdf.save(`${dateStr}_勝ち筋探索まとめ.pdf`);
   } finally {
     document.body.removeChild(container);
   }
