@@ -287,12 +287,11 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    // 統計情報（自分のデータのみ）
-    const stats = await prisma.learningMemory.groupBy({
-      by: ["type"],
-      _count: true,
-      where: { userId, isActive: true },
-    });
+    // 統計情報（自分のデータのみ）- count()で安全に取得
+    const [successPatternCount, failurePatternCount] = await Promise.all([
+      prisma.learningMemory.count({ where: { userId, isActive: true, type: "success_pattern" } }),
+      prisma.learningMemory.count({ where: { userId, isActive: true, type: "failure_pattern" } }),
+    ]);
 
     // 採否件数を取得（自分のデータのみ）
     const [adoptCount, rejectCount] = await Promise.all([
@@ -302,13 +301,18 @@ export async function GET(request: NextRequest) {
     const canExtract = adoptCount >= MIN_ADOPT_REQUIRED && rejectCount >= MIN_REJECT_REQUIRED;
 
     return NextResponse.json({
-      patterns: patterns.map((p) => ({
-        ...p,
-        examples: JSON.parse(p.examples || "[]"),
-      })),
+      patterns: patterns.map((p) => {
+        let examples: string[] = [];
+        try {
+          examples = JSON.parse(p.examples || "[]");
+        } catch {
+          examples = [];
+        }
+        return { ...p, examples };
+      }),
       stats: {
-        successPatterns: stats.find((s) => s.type === "success_pattern")?._count || 0,
-        failurePatterns: stats.find((s) => s.type === "failure_pattern")?._count || 0,
+        successPatterns: successPatternCount,
+        failurePatterns: failurePatternCount,
         total: patterns.length,
       },
       decisionStats: {
@@ -322,7 +326,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Learning GET error:", error);
     return NextResponse.json(
-      { error: "パターン取得に失敗しました" },
+      { error: "パターン取得に失敗しました", detail: String(error) },
       { status: 500 }
     );
   }
