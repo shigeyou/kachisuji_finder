@@ -46,6 +46,18 @@ export default defineConfig({
         baseURL: 'https://kachisuji-finder.azurewebsites.net',
       },
     },
+    // データ永続化テスト（認証後に実行）
+    {
+      name: 'azure-persistence',
+      testMatch: /azure-persistence\.spec\.ts/,
+      dependencies: ['azure-auth'],
+      use: {
+        ...devices['Desktop Chrome'],
+        headless: false,
+        storageState: authFile,
+        baseURL: 'https://kachisuji-finder.azurewebsites.net',
+      },
+    },
     // 包括的ストレステスト（認証後に実行）
     {
       name: 'azure-stress',
