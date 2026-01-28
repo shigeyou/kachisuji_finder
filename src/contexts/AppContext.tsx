@@ -54,7 +54,7 @@ export interface ExplorationResult {
   thinking?: string;
 }
 
-export type TabType = "intro" | "company" | "swot" | "rag" | "score" | "explore" | "history" | "ranking" | "strategies" | "insights";
+export type TabType = "intro" | "company" | "swot" | "rag" | "score" | "explore" | "history" | "ranking" | "strategies" | "insights" | "summary";
 
 export type ExplorationStatus = "idle" | "running" | "completed" | "failed";
 
@@ -103,6 +103,34 @@ export interface MetaAnalysisResult {
   frequentTags: { tag: string; count: number }[];
   blindSpots: string[];
   thinkingProcess: string;
+}
+
+export interface SummaryContent {
+  executiveSummary: string;
+  keyFindings: string[];
+  topRecommendations: {
+    title: string;
+    description: string;
+    priority: "high" | "medium" | "low";
+  }[];
+  patterns: {
+    strengths: string[];
+    opportunities: string[];
+    risks: string[];
+  };
+  nextSteps: string[];
+}
+
+export interface SummaryResult {
+  id: string;
+  content: SummaryContent;
+  stats: {
+    explorationCount: number;
+    topStrategiesCount: number;
+    adoptedCount: number;
+    rejectedCount: number;
+  };
+  createdAt: string;
 }
 
 // ===== 定数 =====
@@ -227,6 +255,14 @@ interface AppContextType {
   startMetaAnalysis: () => Promise<void>;
   clearMetaAnalysisResult: () => void;
 
+  // まとめ
+  summaryStatus: ExplorationStatus;
+  summaryProgress: number;
+  summaryResult: SummaryResult | null;
+  summaryError: string | null;
+  startSummary: () => Promise<void>;
+  clearSummaryResult: () => void;
+
   // プリセット質問生成
   presetQuestions: { label: string; question: string }[];
   presetQuestionsStatus: ExplorationStatus;
@@ -300,6 +336,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const metaAnalysisProgressRef = useRef<NodeJS.Timeout | null>(null);
   const metaAnalysisStartTimeRef = useRef<number>(0);
   const metaAnalysisMaxProgressRef = useRef<number>(0);
+
+  // まとめ
+  const [summaryStatus, setSummaryStatus] = useState<ExplorationStatus>("idle");
+  const [summaryProgress, setSummaryProgress] = useState(0);
+  const [summaryResult, setSummaryResult] = useState<SummaryResult | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const summaryProgressRef = useRef<NodeJS.Timeout | null>(null);
+  const summaryStartTimeRef = useRef<number>(0);
+  const summaryMaxProgressRef = useRef<number>(0);
 
   // プリセット質問
   const [presetQuestionsState, setPresetQuestionsState] = useState<{ label: string; question: string }[]>(presetQuestions);
@@ -431,18 +476,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const setWeights = (newWeights: ScoreWeights) => {
+  const setWeights = useCallback((newWeights: ScoreWeights) => {
     setWeightsState(newWeights);
     localStorage.setItem("scoreWeights", JSON.stringify(newWeights));
-  };
+  }, []);
 
   // 個別の重みを変更（他の項目は変更しない）
   // スコア計算時に合計で正規化されるため、合計が100%でなくても問題ない
-  const adjustWeight = (key: keyof ScoreWeights, newValue: number) => {
-    const clampedValue = Math.max(0, Math.min(100, newValue));
-    const newWeights = { ...weights, [key]: clampedValue };
-    setWeights(newWeights);
-  };
+  const adjustWeight = useCallback((key: keyof ScoreWeights, newValue: number) => {
+    setWeightsState((prev) => {
+      const clampedValue = Math.max(0, Math.min(100, newValue));
+      const newWeights = { ...prev, [key]: clampedValue };
+      localStorage.setItem("scoreWeights", JSON.stringify(newWeights));
+      return newWeights;
+    });
+  }, []);
 
   // ===== スコア計算 =====
   const calculateWeightedScore = useCallback(
@@ -878,6 +926,85 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setMetaAnalysisError(null);
   };
 
+  // ===== まとめ =====
+  const startSummary = async () => {
+    // 既存のプログレスタイマーをクリア
+    if (summaryProgressRef.current) {
+      clearInterval(summaryProgressRef.current);
+      summaryProgressRef.current = null;
+    }
+
+    // 開始時間を記録
+    summaryStartTimeRef.current = Date.now();
+
+    setSummaryStatus("running");
+    setSummaryProgress(0);
+    summaryMaxProgressRef.current = 0;
+    setSummaryResult(null);
+    setSummaryError(null);
+
+    // プログレスバーアニメーション開始（イージング適用、後退防止）
+    // まとめ生成は60秒（1分）を想定
+    summaryProgressRef.current = setInterval(() => {
+      const newProgress = calculateEasedProgress(summaryStartTimeRef.current, 60000);
+      summaryMaxProgressRef.current = Math.max(summaryMaxProgressRef.current, newProgress);
+      setSummaryProgress(summaryMaxProgressRef.current);
+    }, 500);
+
+    try {
+      const res = await fetch("/api/summary", { method: "POST" });
+
+      // プログレスタイマーをクリア
+      if (summaryProgressRef.current) {
+        clearInterval(summaryProgressRef.current);
+        summaryProgressRef.current = null;
+      }
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setSummaryError(data.error || "まとめの生成に失敗しました");
+        setSummaryStatus("failed");
+        setSummaryProgress(0);
+      } else {
+        const result: SummaryResult = {
+          id: data.summary.id,
+          content: typeof data.summary.content === "string"
+            ? JSON.parse(data.summary.content)
+            : data.summary.content,
+          stats: data.summary.stats,
+          createdAt: data.summary.createdAt,
+        };
+
+        // 100%までアニメーションしてから完了状態にする
+        animateToComplete(summaryMaxProgressRef.current, setSummaryProgress, () => {
+          setSummaryResult(result);
+          setSummaryStatus("completed");
+        });
+      }
+    } catch (error) {
+      console.error("Summary generation failed:", error);
+      if (summaryProgressRef.current) {
+        clearInterval(summaryProgressRef.current);
+        summaryProgressRef.current = null;
+      }
+      setSummaryError("まとめの生成に失敗しました");
+      setSummaryStatus("failed");
+      setSummaryProgress(0);
+    }
+  };
+
+  const clearSummaryResult = () => {
+    if (summaryProgressRef.current) {
+      clearInterval(summaryProgressRef.current);
+      summaryProgressRef.current = null;
+    }
+    setSummaryStatus("idle");
+    setSummaryProgress(0);
+    setSummaryResult(null);
+    setSummaryError(null);
+  };
+
   // ===== プリセット質問生成 =====
   const generatePresetQuestions = async () => {
     if (presetQuestionsProgressRef.current) {
@@ -948,6 +1075,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (metaAnalysisProgressRef.current) {
         clearInterval(metaAnalysisProgressRef.current);
       }
+      if (summaryProgressRef.current) {
+        clearInterval(summaryProgressRef.current);
+      }
       if (presetQuestionsProgressRef.current) {
         clearInterval(presetQuestionsProgressRef.current);
       }
@@ -1002,6 +1132,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     metaAnalysisError,
     startMetaAnalysis,
     clearMetaAnalysisResult,
+    summaryStatus,
+    summaryProgress,
+    summaryResult,
+    summaryError,
+    startSummary,
+    clearSummaryResult,
     presetQuestions: presetQuestionsState,
     presetQuestionsStatus,
     presetQuestionsProgress,

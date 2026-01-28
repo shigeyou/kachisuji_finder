@@ -51,6 +51,13 @@ export function InsightsTab() {
     failurePatterns: number;
     total: number;
   } | null>(null);
+  const [decisionStats, setDecisionStats] = useState<{
+    adoptCount: number;
+    rejectCount: number;
+    minAdoptRequired: number;
+    minRejectRequired: number;
+    canExtract: boolean;
+  } | null>(null);
   const [filterType, setFilterType] = useState<"all" | "success_pattern" | "failure_pattern">("all");
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractResult, setExtractResult] = useState<string | null>(null);
@@ -93,6 +100,7 @@ export function InsightsTab() {
       const patternsData = await patternsRes.json();
       setPatterns(patternsData.patterns || []);
       setPatternStats(patternsData.stats || null);
+      setDecisionStats(patternsData.decisionStats || null);
 
       if (historyRes.ok) {
         const historyData = await historyRes.json();
@@ -274,11 +282,34 @@ export function InsightsTab() {
                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
                   蓄積された採否ログをAIが分析し、成功・失敗の傾向をパターンとして抽出します。
                 </p>
+
+                {/* 採否件数の表示 */}
+                {decisionStats && !decisionStats.canExtract && (
+                  <div className="mb-4 p-3 rounded-lg border bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      <span className="font-medium">実行条件:</span> 採用{decisionStats.minAdoptRequired}件以上・却下{decisionStats.minRejectRequired}件以上（計{decisionStats.minAdoptRequired + decisionStats.minRejectRequired}件以上）
+                    </p>
+                    <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                      <span className="font-medium">現在:</span> 採用{decisionStats.adoptCount}件・却下{decisionStats.rejectCount}件
+                      {decisionStats.adoptCount < decisionStats.minAdoptRequired && (
+                        <span className="ml-2 text-red-600 dark:text-red-400">（採用があと{decisionStats.minAdoptRequired - decisionStats.adoptCount}件不足）</span>
+                      )}
+                      {decisionStats.rejectCount < decisionStats.minRejectRequired && (
+                        <span className="ml-2 text-red-600 dark:text-red-400">（却下があと{decisionStats.minRejectRequired - decisionStats.rejectCount}件不足）</span>
+                      )}
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-4">
                   <Button
                     onClick={handleExtractPatterns}
-                    disabled={isExtracting}
-                    className="bg-indigo-600 hover:bg-indigo-700"
+                    disabled={isExtracting || !decisionStats?.canExtract}
+                    className={`${
+                      decisionStats?.canExtract
+                        ? "bg-indigo-600 hover:bg-indigo-700"
+                        : "bg-slate-400 cursor-not-allowed"
+                    }`}
                   >
                     {isExtracting ? "抽出中..." : "パターンを抽出"}
                   </Button>
@@ -461,7 +492,7 @@ export function InsightsTab() {
                           メタ分析中です...
                         </p>
                         <p className="text-xs text-purple-600 dark:text-purple-400">
-                          バックグラウンドで処理中です。他のタブに移動しても処理は継続されます。
+                          バックグラウンドで処理中です。ブラウザを閉じても処理は継続されます。
                         </p>
                       </div>
                     </div>

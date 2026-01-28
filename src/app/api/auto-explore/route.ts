@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
 
     const durationSec = Math.floor((Date.now() - startTime) / 1000);
     const durationStr = `${(durationSec / 60).toFixed(1)}分`;
-    console.log(`[Auto-Explore] Completed in ${durationSec}s. Top score: ${result.topScore.toFixed(2)}`);
+    console.log(`[Auto-Explore] Completed in ${durationSec}s. Top score: ${result.topScore.toFixed(1)}`);
 
     // Record new baseline after exploration
     const newBaseline = await recordBaseline(run.id);

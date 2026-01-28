@@ -178,6 +178,10 @@ export function IntroTab() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-blue-400">•</span>
+                  <span><strong>まとめ</strong> - 探索結果の総括レポート</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-400">•</span>
                   <span><strong>探索履歴</strong> - 過去の探索結果</span>
                 </li>
               </ul>
@@ -242,6 +246,15 @@ export function IntroTab() {
                 <p className="font-medium text-slate-800 dark:text-slate-200">インサイト</p>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                   採否の履歴から「学習パターン」を抽出し、「メタ分析」で本質的な勝ちパターンを発見します。
+                </p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 w-7 h-7 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full flex items-center justify-center text-sm font-bold">6</span>
+              <div>
+                <p className="font-medium text-slate-800 dark:text-slate-200">まとめ</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                  全ての探索データをAIが分析し、エグゼクティブサマリー・推奨事項・パターン分析を含む総括レポートを生成。PDF出力も可能です。
                 </p>
               </div>
             </li>

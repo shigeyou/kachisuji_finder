@@ -12,6 +12,7 @@ import { HistoryTab } from "@/components/tabs/HistoryTab";
 import { RankingTab } from "@/components/tabs/RankingTab";
 import { StrategiesTab } from "@/components/tabs/StrategiesTab";
 import { InsightsTab } from "@/components/tabs/InsightsTab";
+import { SummaryTab } from "@/components/tabs/SummaryTab";
 
 const tabComponents: Record<TabType, React.FC> = {
   intro: IntroTab,
@@ -24,6 +25,7 @@ const tabComponents: Record<TabType, React.FC> = {
   ranking: RankingTab,
   strategies: StrategiesTab,
   insights: InsightsTab,
+  summary: SummaryTab,
 };
 
 function MainContent() {

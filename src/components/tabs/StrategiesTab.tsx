@@ -503,7 +503,7 @@ export function StrategiesTab() {
                               </span>
                               {topScore !== null && topScore > 0 && (
                                 <span className="text-xs text-amber-600 dark:text-amber-400">
-                                  最高 {topScore}点
+                                  最高 {topScore.toFixed(1)}点
                                 </span>
                               )}
                             </div>
@@ -529,7 +529,7 @@ export function StrategiesTab() {
                                       </div>
                                       {strategy.totalScore && (
                                         <span className="text-xs font-medium text-slate-600 dark:text-slate-400 bg-slate-200 dark:bg-slate-600 px-1.5 py-0.5 rounded">
-                                          {strategy.totalScore}点
+                                          {strategy.totalScore.toFixed(1)}点
                                         </span>
                                       )}
                                     </div>
@@ -636,7 +636,7 @@ export function StrategiesTab() {
                           AI自動探索中です...
                         </p>
                         <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                          バックグラウンドで処理中です。他のタブに移動しても処理は継続されます。
+                          バックグラウンドで処理中です。ブラウザを閉じても処理は継続されます。
                         </p>
                       </div>
                     </div>
@@ -705,7 +705,7 @@ export function StrategiesTab() {
                     </div>
                     <div className="text-center p-3 bg-white dark:bg-slate-700 rounded-lg">
                       <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                        {autoExploreResult.topScore.toFixed(2)}
+                        {autoExploreResult.topScore.toFixed(1)}
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400">最高スコア</div>
                     </div>
@@ -804,7 +804,7 @@ export function StrategiesTab() {
                               )}
                               {run.topScore && (
                                 <span className="text-xs text-purple-600 dark:text-purple-400">
-                                  最高 {run.topScore.toFixed(2)}点
+                                  最高 {run.topScore.toFixed(1)}点
                                 </span>
                               )}
                             </div>
@@ -834,7 +834,7 @@ export function StrategiesTab() {
                                 </div>
                                 <div className="p-2 bg-slate-50 dark:bg-slate-700/30 rounded text-center">
                                   <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                                    {run.topScore ? run.topScore.toFixed(2) : "-"}
+                                    {run.topScore ? run.topScore.toFixed(1) : "-"}
                                   </div>
                                   <div className="text-xs text-slate-500 dark:text-slate-400">最高スコア</div>
                                 </div>
@@ -896,7 +896,7 @@ export function StrategiesTab() {
                                 )}
                                 {run.improvement && (
                                   <span className="text-green-600 dark:text-green-400">
-                                    改善: +{run.improvement.toFixed(2)}%
+                                    改善: +{run.improvement.toFixed(1)}%
                                   </span>
                                 )}
                                 {run.completedAt && (

@@ -1,10 +1,25 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/contexts/AppContext";
+
+interface WebSource {
+  id: string;
+  name: string;
+  url: string;
+  description: string | null;
+}
 
 export function RagTab() {
   const { ragDocuments, fetchRAGDocuments } = useApp();
+
+  // ネット情報
+  const [webSources, setWebSources] = useState<WebSource[]>([]);
+  const [webSourceLoading, setWebSourceLoading] = useState(true);
+  const [showAddWebSource, setShowAddWebSource] = useState(false);
+  const [newWebSourceName, setNewWebSourceName] = useState("");
+  const [newWebSourceUrl, setNewWebSourceUrl] = useState("");
+  const [webSourceMessage, setWebSourceMessage] = useState("");
 
   // RAG
   const [ragMessage, setRagMessage] = useState("");
@@ -17,6 +32,80 @@ export function RagTab() {
     fileType: string;
   } | null>(null);
   const [ragDocLoading, setRagDocLoading] = useState(false);
+
+  // ネット情報の取得
+  const fetchWebSources = async () => {
+    try {
+      const res = await fetch("/api/web-sources");
+      const data = await res.json();
+      setWebSources(data.webSources || []);
+    } catch (error) {
+      console.error("Failed to fetch web sources:", error);
+    } finally {
+      setWebSourceLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWebSources();
+  }, []);
+
+  // ネット情報の追加
+  const handleAddWebSource = async () => {
+    if (!newWebSourceName.trim() || !newWebSourceUrl.trim()) {
+      setWebSourceMessage("名前とURLを入力してください");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/web-sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newWebSourceName.trim(),
+          url: newWebSourceUrl.trim(),
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setWebSourceMessage(data.message);
+        setNewWebSourceName("");
+        setNewWebSourceUrl("");
+        setShowAddWebSource(false);
+        fetchWebSources();
+      } else {
+        setWebSourceMessage("エラー: " + data.error);
+      }
+    } catch (error) {
+      console.error("Failed to add web source:", error);
+      setWebSourceMessage("追加に失敗しました");
+    }
+  };
+
+  // ネット情報の削除
+  const handleDeleteWebSource = async (id: string, name: string) => {
+    if (!confirm(`「${name}」を削除しますか？`)) return;
+
+    try {
+      const res = await fetch("/api/web-sources", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setWebSourceMessage(`${name} を削除しました`);
+        fetchWebSources();
+      } else {
+        setWebSourceMessage("エラー: " + data.error);
+      }
+    } catch (error) {
+      console.error("Failed to delete web source:", error);
+      setWebSourceMessage("削除に失敗しました");
+    }
+  };
 
   // RAG管理
   const handleRAGUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,31 +279,93 @@ export function RagTab() {
 
         {/* ネット情報 */}
         <div className="mb-4 pb-4 border-b border-blue-200 dark:border-blue-800">
-          <p className="text-blue-700 dark:text-blue-300 mb-2 font-medium">ネット情報</p>
-          <ul className="space-y-1 ml-4">
-            <li className="text-blue-700 dark:text-blue-300 flex items-center gap-2 text-sm">
-              <span className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0"></span>
-              <a
-                href="https://www.mol-maritex.co.jp/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline"
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-blue-700 dark:text-blue-300 font-medium">ネット情報</p>
+            <button
+              onClick={() => setShowAddWebSource(!showAddWebSource)}
+              className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700"
+            >
+              {showAddWebSource ? "キャンセル" : "+ 追加"}
+            </button>
+          </div>
+
+          {webSourceMessage && (
+            <div className="mb-3 p-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs flex items-center justify-between">
+              <span>{webSourceMessage}</span>
+              <button
+                className="text-blue-900 dark:text-blue-100 font-bold ml-2"
+                onClick={() => setWebSourceMessage("")}
               >
-                商船三井マリテックス（自社）
-              </a>
-            </li>
-            <li className="text-blue-700 dark:text-blue-300 flex items-center gap-2 text-sm">
-              <span className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0"></span>
-              <a
-                href="https://www.mol.co.jp/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline"
-              >
-                商船三井
-              </a>
-            </li>
-          </ul>
+                ×
+              </button>
+            </div>
+          )}
+
+          {/* 追加フォーム */}
+          {showAddWebSource && (
+            <div className="mb-3 p-3 bg-white dark:bg-slate-800 rounded border border-blue-200 dark:border-blue-700">
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  placeholder="表示名（例：商船三井）"
+                  value={newWebSourceName}
+                  onChange={(e) => setNewWebSourceName(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                />
+                <input
+                  type="url"
+                  placeholder="URL（例：https://www.mol.co.jp/）"
+                  value={newWebSourceUrl}
+                  onChange={(e) => setNewWebSourceUrl(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                />
+                <button
+                  onClick={handleAddWebSource}
+                  className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  追加する
+                </button>
+              </div>
+            </div>
+          )}
+
+          {webSourceLoading ? (
+            <p className="text-sm text-blue-500 dark:text-blue-400 text-center py-2">読み込み中...</p>
+          ) : webSources.length === 0 ? (
+            <p className="text-sm text-blue-500 dark:text-blue-400 text-center py-2 ml-4">
+              ネット情報がまだ登録されていません
+            </p>
+          ) : (
+            <ul className="space-y-2 ml-4">
+              {webSources.map((source) => (
+                <li
+                  key={source.id}
+                  className="flex items-center justify-between text-sm text-blue-700 dark:text-blue-300 bg-white dark:bg-slate-800 p-3 rounded"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0"></span>
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline hover:text-blue-900 dark:hover:text-blue-100"
+                    >
+                      {source.name}
+                    </a>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteWebSource(source.id, source.name)}
+                    className="text-red-500 hover:text-red-700 dark:hover:text-red-400 ml-2 p-1"
+                    title="削除"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* 文書情報 */}

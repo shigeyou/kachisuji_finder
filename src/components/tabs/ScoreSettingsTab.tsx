@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useApp, defaultWeights, scoreLabels, ScoreWeights } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 
@@ -69,14 +69,129 @@ const scoreDescriptions: Record<keyof ScoreWeights, {
 export function ScoreSettingsTab() {
   const { weights, setWeights, adjustWeight } = useApp();
   const [expandedAxis, setExpandedAxis] = useState<keyof ScoreWeights | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [saveStatus, setSaveStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [isDefault, setIsDefault] = useState(true);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [savedWeights, setSavedWeights] = useState<ScoreWeights | null>(null);
 
   const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
+
+  // 保存済み設定を読み込む
+  const loadSavedConfig = useCallback(async () => {
+    try {
+      const res = await fetch("/api/score-config");
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.isDefault && data.weights) {
+          setWeights(data.weights);
+          setSavedWeights(data.weights);
+          setIsDefault(false);
+        } else {
+          // デフォルト時もweightsをデフォルト値に設定
+          setWeights(defaultWeights);
+          setSavedWeights(defaultWeights);
+          setIsDefault(true);
+        }
+      } else {
+        // APIエラー時もデフォルト値に設定
+        setWeights(defaultWeights);
+        setSavedWeights(defaultWeights);
+        setIsDefault(true);
+      }
+    } catch (error) {
+      console.error("Failed to load score config:", error);
+      // エラー時もデフォルト値に設定
+      setWeights(defaultWeights);
+      setSavedWeights(defaultWeights);
+      setIsDefault(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [setWeights]);
+
+  // 初回読み込み
+  useEffect(() => {
+    loadSavedConfig();
+  }, [loadSavedConfig]);
+
+  // 変更検知
+  useEffect(() => {
+    if (savedWeights) {
+      const hasChanges = Object.keys(weights).some(
+        (key) => weights[key as keyof ScoreWeights] !== savedWeights[key as keyof ScoreWeights]
+      );
+      setHasUnsavedChanges(hasChanges);
+    }
+  }, [weights, savedWeights]);
+
+  // 設定を保存
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveStatus(null);
+
+    // デフォルト値と同じかチェック
+    const isDefaultValues = Object.keys(defaultWeights).every(
+      (key) => weights[key as keyof ScoreWeights] === defaultWeights[key as keyof ScoreWeights]
+    );
+
+    try {
+      if (isDefaultValues) {
+        // デフォルト値の場合はサーバーから削除
+        await fetch("/api/score-config", { method: "DELETE" });
+        setSaveStatus({ type: "success", message: "デフォルト設定で保存しました" });
+        setSavedWeights({ ...defaultWeights });
+        setIsDefault(true);
+      } else {
+        // カスタム値の場合は保存
+        const res = await fetch("/api/score-config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(weights),
+        });
+
+        if (res.ok) {
+          setSaveStatus({ type: "success", message: "保存しました" });
+          setSavedWeights({ ...weights });
+          setIsDefault(false);
+        } else {
+          const data = await res.json();
+          setSaveStatus({ type: "error", message: data.error || "保存に失敗しました" });
+          return;
+        }
+      }
+      setHasUnsavedChanges(false);
+      setTimeout(() => setSaveStatus(null), 3000);
+    } catch (error) {
+      console.error("Save error:", error);
+      setSaveStatus({ type: "error", message: "保存に失敗しました" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // デフォルトに戻す（UIのみ変更、保存は別途必要）
+  const handleResetToDefault = () => {
+    setWeights(defaultWeights);
+    // savedWeightsは変更しない → useEffectで変更検知され、hasUnsavedChangesがtrueになる
+    setSaveStatus({ type: "success", message: "デフォルト値に設定しました。保存ボタンで確定してください。" });
+    setTimeout(() => setSaveStatus(null), 5000);
+  };
 
   // 正規化後の比率を計算（合計100%になるよう換算）
   const getNormalizedPercentage = (value: number) => {
     if (totalWeight === 0) return 0;
     return Math.round((value / totalWeight) * 100);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-slate-500 dark:text-slate-400">読み込み中...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col px-4 py-3" style={{ height: 'calc(100vh - 130px)', maxHeight: 'calc(100vh - 130px)' }}>
@@ -88,6 +203,16 @@ export function ScoreSettingsTab() {
             <span className={`text-sm font-normal ${totalWeight === 100 ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>
               (設定値合計: {totalWeight})
             </span>
+            {!isDefault && (
+              <span className="ml-2 text-xs font-normal text-blue-600 dark:text-blue-400">
+                (カスタム設定)
+              </span>
+            )}
+            {hasUnsavedChanges && (
+              <span className="ml-2 text-xs font-normal text-amber-600 dark:text-amber-400">
+                (未保存の変更あり)
+              </span>
+            )}
           </h1>
           <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
             各評価軸の重みを設定。設定値は<strong>比率</strong>として計算時に正規化されます。
@@ -108,14 +233,29 @@ export function ScoreSettingsTab() {
             <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
               重み設定
             </h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setWeights(defaultWeights)}
-              className="text-xs h-7 px-2"
-            >
-              デフォルトに戻す
-            </Button>
+            <div className="flex items-center gap-2">
+              {saveStatus && (
+                <span className={`text-xs ${saveStatus.type === "success" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                  {saveStatus.message}
+                </span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResetToDefault}
+                className="text-xs h-7 px-2"
+              >
+                デフォルトに戻す
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSave}
+                disabled={isSaving || !hasUnsavedChanges}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7 px-3"
+              >
+                {isSaving ? "保存中..." : "保存"}
+              </Button>
+            </div>
           </div>
           <div className="space-y-3">
             {(Object.keys(weights) as (keyof ScoreWeights)[]).map((key) => {

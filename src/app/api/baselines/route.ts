@@ -43,7 +43,7 @@ export async function POST() {
     return NextResponse.json({
       success: true,
       baseline,
-      message: `ベースラインを記録しました（トップスコア: ${baseline.topScore.toFixed(2)}）`,
+      message: `ベースラインを記録しました（トップスコア: ${baseline.topScore.toFixed(1)}）`,
     });
   } catch (error) {
     console.error("Baselines POST error:", error);

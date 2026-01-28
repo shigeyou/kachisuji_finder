@@ -197,3 +197,38 @@ model CompanyProfile {
   additionalContext String?  // その他の文脈情報
   updatedAt         DateTime @updatedAt
 }
+
+// ユーザー別スコア設定
+model UserScoreConfig {
+  id                   String   @id @default(cuid())
+  userId               String   @unique // ユーザーごとに1件
+  revenuePotential     Int      @default(30)
+  timeToRevenue        Int      @default(20)
+  competitiveAdvantage Int      @default(20)
+  executionFeasibility Int      @default(15)
+  hqContribution       Int      @default(10)
+  mergerSynergy        Int      @default(5)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+// ユーザー別探索まとめ
+model ExploreSummary {
+  id        String   @id @default(cuid())
+  userId    String
+  content   String   // JSON形式のまとめ内容
+  stats     String?  // JSON形式の統計情報
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ネット情報（RAG参照用の外部URL）
+model WebSource {
+  id          String   @id @default(cuid())
+  name        String   // 表示名（例：商船三井マリテックス）
+  url         String   // URL
+  description String?  // 説明（オプション）
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

@@ -206,7 +206,7 @@ export async function exportSummaryPdf(data: SummaryData): Promise<void> {
 
     <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center;">
       <p style="font-size: 11px; color: #94a3b8; margin: 0;">
-        勝ち筋ファインダー Ver.0.6 | Powered by AI
+        勝ち筋ファインダー Ver.0.7 | Powered by AI
       </p>
     </div>
   `;

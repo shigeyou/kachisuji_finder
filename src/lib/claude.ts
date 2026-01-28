@@ -169,7 +169,7 @@ export async function generateWinningStrategies(
   const companySection = buildCompanySection(companyProfile);
   const companyName = companyProfile?.shortName || companyProfile?.name || "対象企業";
 
-  const systemPrompt = `あなたは「勝ち筋ファインダーVer.0.6」のAIアシスタントです。
+  const systemPrompt = `あなたは「勝ち筋ファインダーVer.0.7」のAIアシスタントです。
 
 ${companySection}
 
