@@ -6,6 +6,36 @@ export async function register() {
     const path = await import("path");
 
     try {
+      // WebSourceのシード
+      const webSourceCount = await prisma.webSource.count();
+
+      if (webSourceCount === 0) {
+        console.log("[Auto-Seed] WebSourceが0件です。シードを実行します...");
+
+        const webSourceSeedPath = path.join(process.cwd(), "prisma/seed-data/web-sources.json");
+
+        if (fs.existsSync(webSourceSeedPath)) {
+          const seedData = JSON.parse(fs.readFileSync(webSourceSeedPath, "utf-8"));
+          const webSources = seedData.webSources || [];
+
+          for (const source of webSources) {
+            await prisma.webSource.create({
+              data: {
+                name: source.name,
+                url: source.url,
+                description: source.description,
+              },
+            });
+          }
+
+          console.log(`[Auto-Seed] ${webSources.length}件のWebSourceをシードしました`);
+        } else {
+          console.log("[Auto-Seed] WebSourceシードファイルが見つかりません:", webSourceSeedPath);
+        }
+      } else {
+        console.log(`[Auto-Seed] WebSourceが${webSourceCount}件存在します。シードをスキップします`);
+      }
+
       // RAGドキュメントのシード
       const ragCount = await prisma.rAGDocument.count();
 

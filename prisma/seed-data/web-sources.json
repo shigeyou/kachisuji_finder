@@ -1,0 +1,14 @@
+{
+  "webSources": [
+    {
+      "name": "商船三井マリテックス",
+      "url": "https://www.mol-maritex.co.jp/",
+      "description": null
+    },
+    {
+      "name": "商船三井",
+      "url": "https://www.mol.co.jp/",
+      "description": null
+    }
+  ]
+}
