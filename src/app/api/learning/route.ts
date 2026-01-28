@@ -3,6 +3,10 @@ import { prisma } from "@/lib/db";
 import { AzureOpenAI } from "openai";
 import { getCurrentUserId } from "@/lib/auth";
 
+// 最低必要な採否件数（採用・却下それぞれ5件以上）
+const MIN_ADOPT_REQUIRED = 5;
+const MIN_REJECT_REQUIRED = 5;
+
 // パターン抽出結果の型
 interface ExtractedPattern {
   type: "success_pattern" | "failure_pattern";
@@ -81,8 +85,7 @@ ${rejectedStrategies.map((s, i) => `${i + 1}. ${s.name}
 // POST: パターン抽出を実行（ユーザー別）
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json().catch(() => ({}));
-    const minDecisions = body.minDecisions || 10; // 最低必要な採否数
+    await request.json().catch(() => ({}));
 
     const userId = await getCurrentUserId();
 
@@ -95,12 +98,17 @@ export async function POST(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    if (decisions.length < minDecisions) {
+    const adoptCount = decisions.filter(d => d.decision === "adopt").length;
+    const rejectCount = decisions.filter(d => d.decision === "reject").length;
+
+    if (adoptCount < MIN_ADOPT_REQUIRED || rejectCount < MIN_REJECT_REQUIRED) {
       return NextResponse.json(
         {
-          error: `パターン抽出には最低${minDecisions}件の採否が必要です（現在: ${decisions.length}件）`,
-          currentCount: decisions.length,
-          required: minDecisions,
+          error: `パターン抽出には採用${MIN_ADOPT_REQUIRED}件以上・却下${MIN_REJECT_REQUIRED}件以上が必要です（現在: 採用${adoptCount}件・却下${rejectCount}件）`,
+          adoptCount,
+          rejectCount,
+          minAdoptRequired: MIN_ADOPT_REQUIRED,
+          minRejectRequired: MIN_REJECT_REQUIRED,
         },
         { status: 400 }
       );
@@ -286,6 +294,20 @@ export async function GET(request: NextRequest) {
       where: { userId, isActive: true },
     });
 
+    // 採否件数を取得（自分のデータのみ）
+    const decisionCounts = await prisma.strategyDecision.groupBy({
+      by: ["decision"],
+      _count: true,
+      where: {
+        userId,
+        decision: { in: ["adopt", "reject"] },
+      },
+    });
+
+    const adoptCount = decisionCounts.find((d) => d.decision === "adopt")?._count || 0;
+    const rejectCount = decisionCounts.find((d) => d.decision === "reject")?._count || 0;
+    const canExtract = adoptCount >= MIN_ADOPT_REQUIRED && rejectCount >= MIN_REJECT_REQUIRED;
+
     return NextResponse.json({
       patterns: patterns.map((p) => ({
         ...p,
@@ -295,6 +317,16 @@ export async function GET(request: NextRequest) {
         successPatterns: stats.find((s) => s.type === "success_pattern")?._count || 0,
         failurePatterns: stats.find((s) => s.type === "failure_pattern")?._count || 0,
         total: patterns.length,
+      },
+      decisionStats: {
+        adoptCount,
+        rejectCount,
+        minAdoptRequired: MIN_ADOPT_REQUIRED,
+        minRejectRequired: MIN_REJECT_REQUIRED,
+        canExtract,
+      },
+      debug: {
+        userId,
       },
     });
   } catch (error) {
