@@ -269,37 +269,63 @@ export async function POST(request: NextRequest) {
 
 // GET: 学習パターンを取得（ユーザー別）
 export async function GET(request: NextRequest) {
+  // 各ステップを個別にtry-catchして、どこで失敗するか特定
+  let step = "init";
   try {
+    step = "parse-params";
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type"); // success_pattern | failure_pattern
     const activeOnly = searchParams.get("active") !== "false";
     const limit = parseInt(searchParams.get("limit") || "50");
 
+    step = "get-userId";
     const userId = await getCurrentUserId();
 
     const where: Record<string, unknown> = { userId };
     if (type) where.type = type;
     if (activeOnly) where.isActive = true;
 
-    const patterns = await prisma.learningMemory.findMany({
-      where,
-      orderBy: [{ confidence: "desc" }, { validationCount: "desc" }],
-      take: limit,
-    });
+    step = "findMany-learningMemory";
+    let patterns;
+    try {
+      patterns = await prisma.learningMemory.findMany({
+        where,
+        orderBy: [{ confidence: "desc" }, { validationCount: "desc" }],
+        take: limit,
+      });
+    } catch (e) {
+      // テーブルが存在しない場合は空配列で続行
+      console.error(`Learning GET: findMany failed (${String(e)}), using empty array`);
+      patterns = [];
+    }
 
-    // 統計情報（自分のデータのみ）- count()で安全に取得
-    const [successPatternCount, failurePatternCount] = await Promise.all([
-      prisma.learningMemory.count({ where: { userId, isActive: true, type: "success_pattern" } }),
-      prisma.learningMemory.count({ where: { userId, isActive: true, type: "failure_pattern" } }),
-    ]);
+    step = "count-patterns";
+    let successPatternCount = 0;
+    let failurePatternCount = 0;
+    try {
+      [successPatternCount, failurePatternCount] = await Promise.all([
+        prisma.learningMemory.count({ where: { userId, isActive: true, type: "success_pattern" } }),
+        prisma.learningMemory.count({ where: { userId, isActive: true, type: "failure_pattern" } }),
+      ]);
+    } catch (e) {
+      console.error(`Learning GET: count patterns failed (${String(e)})`);
+    }
 
-    // 採否件数を取得（自分のデータのみ）
-    const [adoptCount, rejectCount] = await Promise.all([
-      prisma.strategyDecision.count({ where: { userId, decision: "adopt" } }),
-      prisma.strategyDecision.count({ where: { userId, decision: "reject" } }),
-    ]);
+    step = "count-decisions";
+    let adoptCount = 0;
+    let rejectCount = 0;
+    try {
+      [adoptCount, rejectCount] = await Promise.all([
+        prisma.strategyDecision.count({ where: { userId, decision: "adopt" } }),
+        prisma.strategyDecision.count({ where: { userId, decision: "reject" } }),
+      ]);
+    } catch (e) {
+      console.error(`Learning GET: count decisions failed (${String(e)})`);
+    }
+
     const canExtract = adoptCount >= MIN_ADOPT_REQUIRED && rejectCount >= MIN_REJECT_REQUIRED;
 
+    step = "build-response";
     return NextResponse.json({
       patterns: patterns.map((p) => {
         let examples: string[] = [];
@@ -324,9 +350,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Learning GET error:", error);
+    console.error(`Learning GET error at step [${step}]:`, error);
     return NextResponse.json(
-      { error: "パターン取得に失敗しました", detail: String(error) },
+      { error: `パターン取得に失敗しました (step: ${step})`, detail: String(error) },
       { status: 500 }
     );
   }
