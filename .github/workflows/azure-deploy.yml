@@ -36,7 +36,7 @@ jobs:
           npx prisma db push --skip-generate
           ls -la prisma/
         env:
-          DATABASE_URL: file:./deploy.db
+          DATABASE_URL: file:./prisma/dev.db
 
       - name: Build
         run: npm run build
