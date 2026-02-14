@@ -74,15 +74,34 @@ const SYSTEM_PROMPT = `あなたは「メタファインダー」です。
 打ち手は「AIアプリ」に限定しません。組織変革、プロセス改善、人材育成、
 新規事業、提携、撤退判断など、あらゆる施策が対象です。
 
+## 具体性の要件（最重要）
+
+**抽象的・一般論的な記述は厳禁です。** 以下を必ず守ってください：
+
+- **name**: 何をするか一目で分かる具体的な施策名（例：✕「DX推進」→ ○「船舶IoTデータを活用した予防保全システムの構築」）
+- **description**: 以下の3点を必ず含めること（各100文字以上、合計300〜500文字）
+  1. **現状の具体的課題**：何がどう問題なのか（数値・事例・部門名を交えて）
+  2. **施策の概要**：何を目指すのか、全体像を簡潔に
+  3. **期待される成果**：定量的な効果見込み（コスト○%削減、工期○日短縮、○件/年の増加など）
+- **actions**: 「具体的に何をやるか」のアクションリスト（3〜5項目）。各アクションは以下を含むこと：
+  - 実行する内容（例：「○○台帳をNotionで構築し、案件ごとのスコープ・契約形態・変更履歴を一元管理する」）
+  - 対象・範囲（例：「まず洋上風力部の直近3案件でパイロット導入」）
+  - 使うツール・手法があれば明記（例：「Power BIダッシュボードで粗利率・リードタイムをリアルタイム可視化」）
+- **reason**: ドキュメントから読み取れる根拠を引用しつつ、なぜ今この施策が必要かを論理的に説明（200〜300文字）
+
+**actionsの悪い例**：["システムを導入する", "業務を効率化する", "体制を整備する"]
+**actionsの良い例**：["案件管理台帳（Notion/SharePoint）を構築し、受注→建造→運航→訓練→保守の各フェーズのスコープ・担当・KPI（粗利率・正価率・リードタイム）を一元管理する", "直近のE2E案件3件を対象に、フェーズ別の収益モデルテンプレートを作成し、どの工程でキャッシュ化するかを明示する", "月次で案件レビュー会議を開催し、テンプレートとの乖離を分析してモデルを改善するPDCAサイクルを回す", "Power BIダッシュボードで案件別・フェーズ別の粗利推移をリアルタイム可視化し、早期の収益悪化を検知する"]
+
 ## 出力形式（JSON）
 
 {
   "needs": [
     {
       "id": "idea-1",
-      "name": "課題・打ち手の名称",
-      "description": "内容の説明（2-3文）",
-      "reason": "なぜこれが重要か、背景・根拠",
+      "name": "具体的な施策名（20〜40文字）",
+      "description": "現状課題＋施策概要＋期待成果を具体的に記述（300〜500文字）",
+      "actions": ["具体的アクション1（40〜80文字）", "具体的アクション2", "具体的アクション3"],
+      "reason": "ドキュメント根拠に基づく必要性の説明（200〜300文字）",
       "financial": 1-5,
       "customer": 1-5,
       "process": 1-5,
@@ -108,6 +127,7 @@ interface DiscoveredNeed {
   id: string;
   name: string;
   description: string;
+  actions?: string[];
   reason: string;
   financial: number;
   customer: number;
@@ -135,7 +155,7 @@ async function explorePattern(
     `${SYSTEM_PROMPT}\n\n${userPrompt}`,
     {
       temperature: 0.7,
-      maxTokens: 4000,
+      maxTokens: 8000,
       jsonMode: true,
     }
   );
@@ -254,6 +274,7 @@ async function runBatchInBackground(batchId: string) {
                 deptName: dept.label,
                 name: need.name,
                 description: need.description,
+                actions: need.actions ? JSON.stringify(need.actions) : null,
                 reason: need.reason,
                 financial: need.financial,
                 customer: need.customer,

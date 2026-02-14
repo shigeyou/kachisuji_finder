@@ -45,6 +45,7 @@ interface BatchIdea {
   deptName: string;
   name: string;
   description: string;
+  actions: string | null;
   reason: string;
   // BSC 4視点スコア
   financial: number;
@@ -922,11 +923,33 @@ export default function MetaFinderPage() {
                               </div>
 
                               {batchExpandedIdea === idea.id && (
-                                <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
-                                  <p>{idea.description}</p>
-                                  <p className="text-slate-500 dark:text-slate-400">
-                                    <span className="font-medium">理由:</span> {idea.reason}
-                                  </p>
+                                <div className="mt-2 space-y-2 text-xs text-slate-600 dark:text-slate-300">
+                                  <div>
+                                    <span className="font-medium text-slate-500 dark:text-slate-400">概要</span>
+                                    <p className="mt-0.5">{idea.description}</p>
+                                  </div>
+                                  {idea.actions && (() => {
+                                    try {
+                                      const actions: string[] = JSON.parse(idea.actions);
+                                      return actions.length > 0 ? (
+                                        <div>
+                                          <span className="font-medium text-slate-500 dark:text-slate-400">具体的アクション</span>
+                                          <ul className="mt-0.5 space-y-1 list-none">
+                                            {actions.map((action, i) => (
+                                              <li key={i} className="flex gap-1.5">
+                                                <span className="text-blue-500 shrink-0">{i + 1}.</span>
+                                                <span>{action}</span>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      ) : null;
+                                    } catch { return null; }
+                                  })()}
+                                  <div>
+                                    <span className="font-medium text-slate-500 dark:text-slate-400">なぜ有効か</span>
+                                    <p className="mt-0.5">{idea.reason}</p>
+                                  </div>
                                   <div className="flex flex-wrap gap-2 pt-1 text-slate-500">
                                     <span>💰財務 {idea.financial}/5</span>
                                     <span>👥顧客 {idea.customer}/5</span>
